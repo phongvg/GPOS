@@ -1,0 +1,108 @@
+package com.gg.gpos.menu.controller;
+
+import java.util.Locale;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.gg.gpos.controller.BaseController;
+import com.gg.gpos.menu.dto.FoodItemDto;
+import com.gg.gpos.menu.dto.KdsConfigCookingDto;
+import com.gg.gpos.menu.manager.KdsConfigCookingManager;
+import com.gg.gpos.menu.manager.KdsPlaceManager;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Controller
+public class KdsConfigCookingController extends BaseController{
+
+	@Autowired
+	private KdsConfigCookingManager kdsConfigCookingManager;
+	@Autowired
+	private KdsPlaceManager kdsPlaceManager;
+	
+	@GetMapping("/res/kdsConfigCooking/list")
+    public ModelAndView list(@RequestParam(name="rCode", required = true) Integer rCode) {
+    	log.debug("entering 'show kds place' method...");
+    	ModelAndView modelAndView = new ModelAndView("res-kds-config-cooking-list");
+    	KdsConfigCookingDto criteria = new KdsConfigCookingDto();
+		criteria.setPage(appProperties.getDefaultPage());
+		criteria.setSize(appProperties.getDefaultPageSize());
+		criteria.setRestaurantCode(rCode);
+		Page<KdsConfigCookingDto> pages = kdsConfigCookingManager.gets(criteria);
+		modelAndView.addObject("page", pages);
+		modelAndView.addObject("criteria",criteria);
+		return modelAndView;
+    }
+	
+	@PostMapping("/res/kdsConfigCooking/list")
+    public ModelAndView search(Model model, @Valid KdsConfigCookingDto criteria, BindingResult bindingResult){
+    	log.debug("entering 'search' method...");
+		ModelAndView modelAndView = new ModelAndView("res-kds-config-cooking-list");
+		if(criteria.getSize() == null) {
+			criteria.setPage(appProperties.getDefaultPage());
+			criteria.setSize(appProperties.getDefaultPageSize());
+		}
+		Page<KdsConfigCookingDto> pages = kdsConfigCookingManager.gets(criteria);
+		modelAndView.addObject("page", pages);
+		modelAndView.addObject("criteria",criteria);
+        return modelAndView;
+    }
+	
+	@GetMapping("/res/kdsConfigCooking/form")
+    public ModelAndView show(@RequestParam(value="id", required=false) Long id,@RequestParam(value="rCode", required=true) Integer rCode) {
+    	log.debug("entering 'show' method...");
+    	ModelAndView modelAndView = new ModelAndView("res-kds-config-cooking-form");
+    	KdsConfigCookingDto kdsConfigCooking = new KdsConfigCookingDto();
+    	if(id != null) {
+    		kdsConfigCooking = kdsConfigCookingManager.get(id);
+    	}
+    	kdsConfigCooking.setRestaurantCode(rCode);
+    	
+    	modelAndView.addObject("kdsConfigCooking", kdsConfigCooking);	
+    	modelAndView.addObject("kdsPlaces", kdsPlaceManager.getByResCode(rCode));	
+        return modelAndView;
+    }
+	
+	@PostMapping("/res/kdsConfigCooking/save")
+    public String save(@Valid KdsConfigCookingDto kdsConfigCookingDto,BindingResult bindingResult, HttpServletRequest request, HttpServletResponse response) {
+    	log.debug("entering 'save ' method...");
+        Locale locale = request.getLocale();
+        String view = "res-kds-config-cooking-form";
+        if (bindingResult.hasErrors()) {
+        	addError(request, bindingResult.getAllErrors().toString());
+        } 
+        try {
+        	KdsConfigCookingDto kdsNew = kdsConfigCookingManager.save(kdsConfigCookingDto);
+	    	addMessage(request, getText("kds.config.cooking.updated", locale));
+	        view = "redirect:/res/kdsConfigCooking/list?rCode=" + kdsNew.getRestaurantCode();
+		} catch (Exception e) {
+			addError(request, e.getMessage());
+		}
+        return view;
+    }
+	
+	@GetMapping("/api/kdsConfigCooking/load-item")
+    @ResponseBody
+    public FoodItemDto getFoodItem(@RequestParam("id") Long id) {
+    	log.info("entering 'getFoodItem' method...");
+    	return kdsConfigCookingManager.getFoodItem(id);
+    }
+	    
+		
+		
+	
+}

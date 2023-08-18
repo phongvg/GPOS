@@ -1,0 +1,74 @@
+package com.gg.gpos.audit.controller;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.gg.gpos.audit.dto.AuditLogDto;
+import com.gg.gpos.common.constant.SymbolEnum;
+import com.gg.gpos.controller.BaseController;
+import com.speedfrwk.data.jpa.audit.manager.AuditLogManager;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Controller
+public class AuditLogController extends BaseController {
+	
+	@Autowired
+	private AuditLogManager auditLogManager;
+	
+	@GetMapping("/audit-log/list")
+    public ModelAndView list(HttpServletRequest request) {
+    	log.info("entering 'list' method...");
+
+		ModelAndView modelAndView = new ModelAndView("audit-log-list");
+		AuditLogDto criteria = new AuditLogDto();
+		criteria.setKeyword(convertDateToString());
+		criteria.setPage(appProperties.getDefaultPage());
+		criteria.setSize(appProperties.getDefaultPageSize());
+		Page<AuditLogDto> pages = auditLogManager.gets(criteria);
+		modelAndView.addObject("page", pages);
+		modelAndView.addObject("criteria",criteria);
+        return modelAndView;
+    }
+    
+    @PostMapping("/audit-log/list")
+    public ModelAndView search(Model model, @Valid AuditLogDto criteria, BindingResult bindingResult, HttpServletRequest request) {
+    	log.info("entering 'search' method...");
+    	ModelAndView modelAndView = new ModelAndView("audit-log-list");
+		if(criteria != null && criteria.getSize() == null) {
+			criteria.setPage(appProperties.getDefaultPage());
+			criteria.setSize(appProperties.getDefaultPageSize());
+		}
+		Page<AuditLogDto> pages = auditLogManager.gets(criteria);
+		modelAndView.addObject("page", pages);
+		modelAndView.addObject("criteria",criteria);
+        return modelAndView;
+    }
+    
+    private String convertDateToString() {
+    	Calendar calendar = Calendar.getInstance();
+		Date today = calendar.getTime();
+		calendar.add(Calendar.DAY_OF_MONTH, -7);
+		Date sevenDaysBefore = calendar.getTime();
+		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");  
+	    String strEndDate = formatter.format(today);  
+	    String strStartDate = formatter.format(sevenDaysBefore);
+	    StringBuilder builder = new StringBuilder();
+	    builder.append(strStartDate).append(SymbolEnum.SPACE.val).append(SymbolEnum.HYPHEN.val).append(SymbolEnum.SPACE.val).append(strEndDate);
+	    return builder.toString();
+    }
+}

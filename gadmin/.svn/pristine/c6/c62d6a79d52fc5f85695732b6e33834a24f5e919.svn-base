@@ -1,0 +1,381 @@
+package com.gg.gpos.controller;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.jms.JMSException;
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.gg.gpos.common.constant.ReferenceDataEnum;
+import com.gg.gpos.common.constant.ResultEnum;
+import com.gg.gpos.common.constant.StatusEnum;
+import com.gg.gpos.common.constant.StatusSyncEnum;
+import com.gg.gpos.common.constant.StepOfVersionEnum;
+import com.gg.gpos.common.constant.SymbolEnum;
+import com.gg.gpos.common.constant.SyncStatusEnum;
+import com.gg.gpos.common.constant.SystemParamEnum;
+import com.gg.gpos.common.constant.TypeDataEnum;
+import com.gg.gpos.common.constant.TypeSyncEnum;
+import com.gg.gpos.common.json.SyncResponse;
+import com.gg.gpos.integration.dto.FileRestaurantQueue;
+import com.gg.gpos.integration.exception.IntegrationException;
+import com.gg.gpos.integration.jms.MessageRestaurantSender;
+import com.gg.gpos.integration.manager.MasterDataSyncManager;
+import com.gg.gpos.integration.manager.RestaurantSyncManager;
+import com.gg.gpos.integration.manager.SyncArchiveManager;
+import com.gg.gpos.integration.manager.SyncManager;
+import com.gg.gpos.menu.dto.CategoryDto;
+import com.gg.gpos.menu.dto.CurrencyDto;
+import com.gg.gpos.menu.dto.CurrencyRateDto;
+import com.gg.gpos.menu.dto.EmployeeDto;
+import com.gg.gpos.menu.dto.FoodItemDto;
+import com.gg.gpos.menu.dto.GuestTypeDto;
+import com.gg.gpos.menu.dto.HallplanDto;
+import com.gg.gpos.menu.dto.ModiGroupDto;
+import com.gg.gpos.menu.dto.ModiSchemeDetailDto;
+import com.gg.gpos.menu.dto.ModiSchemeDto;
+import com.gg.gpos.menu.dto.ModifierDto;
+import com.gg.gpos.menu.dto.OrderCategoryDto;
+import com.gg.gpos.menu.dto.OrderTypeDto;
+import com.gg.gpos.menu.dto.OrderVoidDto;
+import com.gg.gpos.menu.dto.RestaurantMasterDto;
+import com.gg.gpos.menu.dto.TableKitchenDto;
+import com.gg.gpos.menu.dto.VersionDto;
+import com.gg.gpos.menu.manager.CategoryManager;
+import com.gg.gpos.menu.manager.CurrencyManager;
+import com.gg.gpos.menu.manager.CurrencyRateManager;
+import com.gg.gpos.menu.manager.EmployeeManager;
+import com.gg.gpos.menu.manager.FoodGroupManager;
+import com.gg.gpos.menu.manager.FoodItemManager;
+import com.gg.gpos.menu.manager.GuestTypeManager;
+import com.gg.gpos.menu.manager.HallplanManager;
+import com.gg.gpos.menu.manager.ModiGroupManager;
+import com.gg.gpos.menu.manager.ModiSchemeDetailManager;
+import com.gg.gpos.menu.manager.ModiSchemeManager;
+import com.gg.gpos.menu.manager.ModifierManager;
+import com.gg.gpos.menu.manager.OrderCategoryManager;
+import com.gg.gpos.menu.manager.OrderTypeManager;
+import com.gg.gpos.menu.manager.OrderVoidManager;
+import com.gg.gpos.menu.manager.RestaurantMasterManager;
+import com.gg.gpos.menu.manager.TableKitchenManager;
+import com.gg.gpos.menu.manager.VersionManager;
+import com.gg.gpos.reference.dto.SystemParameterDto;
+import com.gg.gpos.reference.manager.AttachmentManager;
+import com.gg.gpos.reference.manager.SystemParameterManager;
+import com.gg.gpos.res.dto.RestaurantDto;
+import com.gg.gpos.res.manager.RestaurantManager;
+import com.gg.gpos.res.manager.SyncStatusManager;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@EnableScheduling
+@Controller
+public class HomeController extends BaseController{
+	
+	@Autowired
+	private CategoryManager categoryManager;
+	@Autowired
+	private CurrencyManager currencyManager;
+	@Autowired
+	private CurrencyRateManager currencyRateManager;
+	@Autowired
+	private FoodItemManager foodItemManager;
+	@Autowired
+	private HallplanManager hallPlanManager;
+	@Autowired
+	private ModifierManager modifierManager;
+	@Autowired
+	private ModiGroupManager modiGroupManager;
+	@Autowired
+	private ModiSchemeManager modiSchemeManager;
+	@Autowired
+	private ModiSchemeDetailManager modiSchemeDetailManager;
+	@Autowired
+	private OrderCategoryManager orderCategoryManager;
+	@Autowired
+	private OrderTypeManager orderTypeManager;
+	@Autowired
+	private OrderVoidManager orderVoidManager;
+	@Autowired
+	private TableKitchenManager tableKitchenManager;
+	@Autowired
+	private GuestTypeManager guestTypeManager;
+	@Autowired
+	private EmployeeManager employeeManager;
+	@Autowired
+	private RestaurantMasterManager restaurantMasterManager;
+	
+	@Autowired
+	private SystemParameterManager systemParameterManager;
+	@Autowired
+	private MasterDataSyncManager masterDataSyncManager;
+	@Autowired
+	private RestaurantSyncManager restaurantSyncManager;
+	@Autowired
+	private RestaurantManager restaurantManager;
+	@Autowired
+    private VersionManager versionManager;
+	@Autowired
+	private SyncManager syncManager;
+	@Autowired
+	private SyncArchiveManager syncArchiveManager;
+	@Autowired
+	private SyncStatusManager syncStatusManager;
+	@Autowired
+    private MessageRestaurantSender messageRestaurantSender;
+	@Autowired
+	private FoodGroupManager foodGroupManager;
+	@Autowired
+	private AttachmentManager attachmentManager;
+	
+	@GetMapping(value = {"/", "home"})
+	public String home(Model model) {
+		log.info("Entering home() ... ");
+		String view = "home";
+		model.addAttribute("countRestaurant", restaurantManager.countRestaurant());
+		model.addAttribute("countRestaurantActive", restaurantManager.countRestaurantByOnOffline(StatusEnum.ACTIVE.status));
+		model.addAttribute("countRestaurantInactive", restaurantManager.countRestaurantByOnOffline(StatusEnum.INACTIVE.status));
+		return view;
+	}
+	
+	@GetMapping("all/sync-to-res")
+	public ModelAndView syncToRes() {
+		ModelAndView modelAndView = new ModelAndView("ref-form-sync");
+		modelAndView.addObject("restaurant", new RestaurantDto());
+		return modelAndView;
+	}
+	
+	@GetMapping("/all/sync-from-rk7")
+	public String synncFromRK7(Model model, HttpServletRequest request) throws IntegrationException {
+		
+		try {
+			SystemParameterDto systemParameter = systemParameterManager.get(SystemParamEnum.REFERENCE_DATA_URL.param);
+			Map<String, Object> map = restaurantSyncManager.syncRestaurantFromServer(systemParameter.getParamValue());		
+			restaurantManager.syncFromServer(map);
+			
+			SystemParameterDto rk7UrlParam = systemParameterManager.get(SystemParamEnum.RK7_URL.param);
+			SystemParameterDto rk7BasicAuthParam = systemParameterManager.get(SystemParamEnum.RK7_BASIC_AUTH.param);
+			
+			List<CategoryDto> categoryDtos = masterDataSyncManager.syncCategoryFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<CurrencyDto> currencyDtos = masterDataSyncManager.syncCurrencyFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<CurrencyRateDto> currencyRateDtos = masterDataSyncManager.syncCurrencyRateFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());		
+			List<FoodItemDto> foodItemDtos = masterDataSyncManager.syncMenuItemFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<HallplanDto> hallplanDtos = masterDataSyncManager.syncHallplanFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<ModifierDto> modifierDtos = masterDataSyncManager.syncModifierFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<ModiGroupDto> modiGroupDtos = masterDataSyncManager.syncModiGroupFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<ModiSchemeDto> modiSchemeDtos = masterDataSyncManager.syncModiSchemeFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<ModiSchemeDetailDto> modiSchemeDetailDtos = masterDataSyncManager.syncModiSchemeDetailFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<OrderCategoryDto> orderCategoryDtos = masterDataSyncManager.syncOrderCategoryFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue()) ;
+			List<OrderTypeDto> orderTypeDtos = masterDataSyncManager.syncOrderTypeFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<OrderVoidDto> orderVoidDtos = masterDataSyncManager.syncOrderVoidFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<TableKitchenDto> tableKitchenDtos = masterDataSyncManager.syncTableFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<GuestTypeDto> guestTypeDtos = masterDataSyncManager.syncGuestTypeFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());	
+			List<EmployeeDto> employeeDtos = masterDataSyncManager.syncEmployeeFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			List<RestaurantMasterDto> restaurantMasterDtos = masterDataSyncManager.syncRestaurantMasterFromRK7(rk7UrlParam.getParamValue(), rk7BasicAuthParam.getParamValue());
+			
+			categoryManager.save(categoryDtos);
+			currencyManager.save(currencyDtos);
+			currencyRateManager.save(currencyRateDtos);
+			foodItemManager.save(foodItemDtos);
+			hallPlanManager.save(hallplanDtos);
+			modifierManager.save(modifierDtos);
+			modiGroupManager.save(modiGroupDtos);
+			modiSchemeManager.save(modiSchemeDtos);
+			modiSchemeDetailManager.save(modiSchemeDetailDtos);
+			orderCategoryManager.save(orderCategoryDtos);
+			orderTypeManager.save(orderTypeDtos);
+			orderVoidManager.save(orderVoidDtos);
+			tableKitchenManager.save(tableKitchenDtos);
+			guestTypeManager.save(guestTypeDtos);
+			employeeManager.save(employeeDtos);
+			restaurantMasterManager.save(restaurantMasterDtos);
+			addMessage(request, getText("all.sync.from.rk7.success",request.getLocale()));
+		} catch (Exception e) {
+			addError(request, e.getMessage());
+		}
+		
+		return "redirect:/";
+		
+	}
+
+//	@PostMapping("all/sync-master-to-res")
+//	public String syncMasterDataToRes(@Valid RestaurantDto restaurant, Model model, HttpServletRequest request) throws JMSException {
+//		log.debug("entering 'Sync Master Data To Restaurants' method ...");
+//		
+//		Set<FileRestaurantQueue> fileRestaurantQueues = new HashSet<>();
+//		Set<FileRestaurantQueue> restaurantFails = new HashSet<>();
+//		Set<Integer> resCodeSyncFail = new HashSet<>();
+//		List<Integer> resCodes = new ArrayList<>(); 
+//		if(restaurant.isCheckSyncMasterData()) {
+//			List<RestaurantDto> restaurantDtos = restaurantManager.getBySttSyncBusinessData(StatusSyncEnum.SYNC_FAIL.val,StatusSyncEnum.NOT_SYNC.val);
+//			if(restaurantDtos != null && !restaurantDtos.isEmpty()) {
+//				restaurantDtos.stream().forEach(restaurantDto -> {
+//					if(restaurantDto != null) {
+//						FileRestaurantQueue fileRestaurantQueue = new FileRestaurantQueue();
+//						fileRestaurantQueue.setResCode(restaurantDto.getCode());
+//						fileRestaurantQueue.setResName(restaurantDto.getName());
+//						fileRestaurantQueue.setCheckedRef(true);
+//						if(restaurantDto.getIp() != null && restaurantDto.getPort() != null) {
+//							resCodes.add(restaurantDto.getCode());
+//							fileRestaurantQueues.add(fileRestaurantQueue);
+//						}else {
+//							restaurantFails.add(fileRestaurantQueue);
+//							resCodeSyncFail.add(restaurantDto.getCode());
+//						}
+//					}
+//				});
+//			}
+//    	}
+//		
+//		if(restaurant.getSelectedRestaurantCodes() != null && !restaurant.getSelectedRestaurantCodes().isEmpty() && restaurant.getReferenceDatas() != null && !restaurant.getReferenceDatas().isEmpty()) {
+//			Set<String> keys = StringUtils.commaDelimitedListToSet(restaurant.getSelectedRestaurantCodes());
+//	    	List<String> codes = keys.stream().filter(key -> {
+//	    		return !key.contains(SymbolEnum.UNDERSCORE.val);
+//	    	}).collect(Collectors.toList());
+//	    	codes.stream().forEach(resCode ->{
+//	    		if(!resCodes.contains(Integer.parseInt(resCode))) {
+//	    			RestaurantDto restaurantDto = restaurantManager.get(Integer.parseInt(resCode));
+//	    			FileRestaurantQueue fileRestaurantQueue = new FileRestaurantQueue();
+//	    			fileRestaurantQueue.setResCode(restaurantDto.getCode());
+//	    			fileRestaurantQueue.setResName(restaurantDto.getName());
+//					fileRestaurantQueue.setReferenceDatas(restaurant.getReferenceDatas());
+//					fileRestaurantQueue.setCheckedRef(false);
+//					if(restaurantDto.getIp() != null && restaurantDto.getPort() != null) {
+//						fileRestaurantQueues.add(fileRestaurantQueue);
+//					} else {
+//						restaurantFails.add(fileRestaurantQueue);
+//						resCodeSyncFail.add(restaurantDto.getCode());
+//					}
+//	    		}
+//			});
+//		}
+//		syncManager.save(fileRestaurantQueues, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.INPROCESSING.val, ResultEnum.WAITING_RESULT.val);
+//		syncArchiveManager.saves(restaurantFails, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.FAIL.val, ResultEnum.NOT_IP_OR_NOT_PORT.val);
+//		syncStatusManager.saveSttSyncDataIfNotIpOrPort(resCodeSyncFail, TypeDataEnum.MASTER_DATA.val);
+//		Set<VersionDto> versionDtos = new HashSet<>();
+//		
+//		if(!fileRestaurantQueues.isEmpty()) {
+//			Set<FileRestaurantQueue> restaurantQueues = messageRestaurantSender.publish(fileRestaurantQueues);
+//			restaurantQueues.stream().forEach(rQueue ->{
+//				Integer resCode = rQueue.getResCode();
+//				String resName = rQueue.getResName();
+//				List<String> errors = new ArrayList<>();
+//				// check online/offline
+//				boolean checkOnline = checkOnlineRestaurant(resCode);
+//				StringBuilder resultSync = new StringBuilder();
+//				if(checkOnline) {
+//					if(rQueue.isCheckedRef()) {
+//						for(ReferenceDataEnum e : ReferenceDataEnum.values()){
+//							if(errors != null && errors.isEmpty()) {
+//								Integer versionNo;
+//								VersionDto versionDto = versionManager.getByTableName(e.valTableName);
+//						    	if(versionDto != null && versionDto.getVersionNo() != null) {
+//						    		versionNo = versionDto.getVersionNo() + StepOfVersionEnum.STEP_1.step;
+//						    	} else {
+//						    		versionDto = new VersionDto();
+//						    		versionDto.setTableName(e.valTableName);
+//						    		versionNo = StepOfVersionEnum.STEP_1.step;
+//						    	}
+//						    	versionDto.setVersionNo(versionNo);
+//						    	versionDtos.add(versionDto);
+//						    	SyncResponse res = sendMasterD(SystemParamEnum.API_GATEWAY_URL.param, e.valSysParam, versionNo, String.valueOf(resCode));
+//						    	if (!String.valueOf(HttpStatus.OK.value()).equals(res.getCode())) {
+//						    		errors.add(res.getMess());
+//						    	}else {
+//						    		resultSync.append(e.valTableName).append(SymbolEnum.COMMA.val);
+//						    		syncManager.save(resCode, resName, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.INPROCESSING.val, resultSync.toString());
+//						    	}
+//							}
+//						}
+//					}else {
+//						for(Integer c : restaurant.getReferenceDatas()) {
+//							if(errors != null && errors.isEmpty()) {
+//								for(ReferenceDataEnum e : ReferenceDataEnum.values()){
+//									if(e.key.equals(c)) {
+//										VersionDto versionDto = versionManager.getByTableName(e.valTableName);
+//										Integer versionNo;
+//								    	if(versionDto != null && versionDto.getVersionNo() != null) {
+//								    		versionNo = versionDto.getVersionNo() + StepOfVersionEnum.STEP_1.step;
+//								    	} else {
+//								    		versionDto = new VersionDto();
+//								    		versionDto.setTableName(e.valTableName);
+//								    		versionNo = StepOfVersionEnum.STEP_1.step;
+//								    	}
+//								    	versionDto.setVersionNo(versionNo);
+//								    	SyncResponse res = sendMasterD(SystemParamEnum.API_GATEWAY_URL.param, e.valSysParam, versionNo, String.valueOf(resCode));
+//								    	if (!String.valueOf(HttpStatus.OK.value()).equals(res.getCode())) {
+//								    		errors.add(res.getMess());
+//								    	}else {
+//								    		resultSync.append(e.valTableName).append(SymbolEnum.COMMA.val);
+//								    		syncManager.save(resCode,resName,TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.INPROCESSING.val, resultSync.toString());
+//								    	}
+//									}
+//								}
+//							}
+//						}
+//					}
+//					syncManager.deleteSync(resCode, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.INPROCESSING.val);
+//					if (errors != null && !errors.isEmpty()) {
+//			    		syncStatusManager.saveSttAfterSync(resCode, StatusSyncEnum.SYNC_FAIL.val,TypeDataEnum.MASTER_DATA.val);
+//			    		syncArchiveManager.updateAfterSyncData(resCode,resName,TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.FAIL.val,errors.get(0));
+//			    	} else {
+//			    		syncStatusManager.saveSttAfterSync(resCode, StatusSyncEnum.SYNC_SUCCCESS.val,TypeDataEnum.MASTER_DATA.val);
+//			    		syncArchiveManager.updateAfterSyncData(resCode,resName, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.SUCCESS.val, SyncStatusEnum.SUCCESS.val);
+//			    	}
+//				} else {
+//					// delete record and update status if restaurant offline
+//					syncManager.deleteSync(resCode, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.INPROCESSING.val);
+//					syncStatusManager.saveSttAfterSync(resCode, StatusSyncEnum.SYNC_FAIL.val,TypeDataEnum.MASTER_DATA.val);
+//		    		syncArchiveManager.updateAfterSyncData(resCode,resName, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.MASTER_DATA.val, SyncStatusEnum.FAIL.val,ResultEnum.RESTAURANT_OFFLINE.val);
+//				}
+//				
+//			});
+//		}
+//		versionManager.saves(versionDtos);
+//		
+//		return "redirect:/all/sync-to-res";
+//	}
+	
+	//call api check online/offline
+    private boolean checkOnlineRestaurant(Integer resCode) {
+    	log.debug("entering 'checkOnlineRestaurant' method ...");    
+
+    	boolean check;
+    	SystemParameterDto gatewayUrl = systemParameterManager.get(SystemParamEnum.API_GATEWAY_URL.param);
+    	SystemParameterDto url = systemParameterManager.get(SystemParamEnum.API_BUSINESS_CHECK_STATUS_RESTAURANT_PATTERN.param);
+    	String apiUrl = gatewayUrl.getParamValue() + url.getParamValue();
+    	try {
+    		check = restaurantSyncManager.check(apiUrl,resCode);
+		} catch (JsonProcessingException e) {
+			check = false;
+			e.printStackTrace();
+		}
+    	return check;
+    }
+   
+    
+//    @Scheduled(cron = "${scheduled.cron.expression}")
+//    private void schedulingDeleteAttachment() {
+//    	log.debug("entering 'schedulingDeleteAttachment' method ...");    
+//    	attachmentManager.delAttAfterSync(ModuleTypeEnum.DEL_ATTACHMENT.val);
+//    }
+	 
+    
+}

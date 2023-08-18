@@ -1,0 +1,12 @@
+com/speedfrwk/data/jpa/audit/mapper/AuditLogMapperImpl.class
+com/speedfrwk/data/jpa/audit/AuditEntityListener.class
+com/speedfrwk/data/jpa/audit/BeanUtil.class
+com/speedfrwk/data/jpa/audit/JPAAuditConfig.class
+com/speedfrwk/data/jpa/audit/Auditable.class
+com/speedfrwk/data/jpa/audit/specification/AuditLogSpecification.class
+com/speedfrwk/data/jpa/audit/AuditLog.class
+com/speedfrwk/data/jpa/audit/Action.class
+com/speedfrwk/data/jpa/audit/manager/AuditLogManager.class
+com/speedfrwk/data/jpa/audit/AuditorAwareImpl.class
+com/speedfrwk/data/jpa/audit/repository/AuditLogRepository.class
+com/speedfrwk/data/jpa/audit/mapper/AuditLogMapper.class

@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Created with Liquid Technologies Online Tools 1.0 (https://www.liquid-technologies.com) -->
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="RK7QueryResult">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="CommandResult">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="RK7Reference">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="Items">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element maxOccurs="unbounded" name="Item">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="RecommendedMenuItems">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="Items" />
+                                    </xs:sequence>
+                                    <xs:attribute name="ClassName" type="xs:string" use="required" />
+                                  </xs:complexType>
+                                </xs:element>
+                                <xs:element name="Childs">
+                                  <xs:complexType>
+                                    <xs:sequence minOccurs="0">
+                                      <xs:element maxOccurs="unbounded" name="Child">
+                                        <xs:complexType>
+                                          <xs:attribute name="ChildIdent" type="xs:unsignedInt" use="required" />
+                                          <xs:attribute name="IsTerminal" type="xs:int" use="required" />
+                                        </xs:complexType>
+                                      </xs:element>
+                                    </xs:sequence>
+                                    <xs:attribute name="ClassName" type="xs:string" use="required" />
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                              <xs:attribute name="Ident" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="ItemIdent" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="SourceIdent" type="xs:int" use="required" />
+                              <xs:attribute name="GUIDString" type="xs:string" use="required" />
+                              <xs:attribute name="AssignChildsOnServer" type="xs:int" use="required" />
+                              <xs:attribute name="ActiveHierarchy" type="xs:int" use="required" />
+                              <xs:attribute name="Code" type="xs:string" use="required" />
+                              <xs:attribute name="Name" type="xs:string" use="required" />
+                              <xs:attribute name="AltName" type="xs:string" use="required" />
+                              <xs:attribute name="MainParentIdent" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="Status" type="xs:int" use="required" />
+                              <xs:attribute name="VisualType_Image" type="xs:int" use="required" />
+                              <xs:attribute name="VisualType_BColor" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="VisualType_TextColor" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="VisualType_Flags" type="xs:int" use="required" />
+                              <xs:attribute name="SalesTerms_Flag" type="xs:int" use="required" />
+                              <xs:attribute name="SalesTerms_StartSale" type="xs:unsignedLong" use="required" />
+                              <xs:attribute name="SalesTerms_StopSale" type="xs:unsignedLong" use="required" />
+                              <xs:attribute name="RightLvl" type="xs:string" use="required" />
+                              <xs:attribute name="AvailabilitySchedule" type="xs:int" use="required" />
+                              <xs:attribute name="UseStartSale" type="xs:int" use="required" />
+                              <xs:attribute name="UseStopSale" type="xs:int" use="required" />
+                              <xs:attribute name="TaxDishType" type="xs:int" use="required" />
+                              <xs:attribute name="FutureTaxDishType" type="xs:int" use="required" />
+                              <xs:attribute name="Parent" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="ExtCode" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="ShortName" type="xs:string" use="required" />
+                              <xs:attribute name="AltShortName" type="xs:string" use="required" />
+                              <xs:attribute name="PortionWeight" type="xs:int" use="required" />
+                              <xs:attribute name="PortionName" type="xs:string" use="required" />
+                              <xs:attribute name="AltPortion" type="xs:string" use="required" />
+                              <xs:attribute name="Kurs" type="xs:int" use="required" />
+                              <xs:attribute name="QntDecDigits" type="xs:int" use="required" />
+                              <xs:attribute name="ModiScheme" type="xs:int" use="required" />
+                              <xs:attribute name="ComboScheme" type="xs:int" use="required" />
+                              <xs:attribute name="ModiWeight" type="xs:int" use="required" />
+                              <xs:attribute name="CookMins" type="xs:int" use="required" />
+                              <xs:attribute name="Comment" type="xs:string" use="required" />
+                              <xs:attribute name="Instruct" type="xs:string" use="required" />
+                              <xs:attribute name="Flags" type="xs:int" use="required" />
+                              <xs:attribute name="TaraWeight" type="xs:int" use="required" />
+                              <xs:attribute name="ConfirmQnt" type="xs:int" use="required" />
+                              <xs:attribute name="MInterface" type="xs:int" use="required" />
+                              <xs:attribute name="MinRestQnt" type="xs:int" use="required" />
+                              <xs:attribute name="BarCodes" type="xs:string" use="required" />
+                              <xs:attribute name="PriceMode" type="xs:int" use="required" />
+                              <xs:attribute name="OpenPrice" type="xs:int" use="required" />
+                              <xs:attribute name="DontPack" type="xs:int" use="required" />
+                              <xs:attribute name="ChangeQntOnce" type="xs:int" use="required" />
+                              <xs:attribute name="AllowPurchasing" type="xs:int" use="required" />
+                              <xs:attribute name="UseRestControl" type="xs:int" use="required" />
+                              <xs:attribute name="UseConfirmQnt" type="xs:int" use="required" />
+                              <xs:attribute name="CategPath" type="xs:string" use="required" />
+                              <xs:attribute name="SaleObjectType" type="xs:int" use="required" />
+                              <xs:attribute name="ComboJoinMode" type="xs:int" use="required" />
+                              <xs:attribute name="ComboSplitMode" type="xs:int" use="required" />
+                              <xs:attribute name="AddLineMode" type="xs:int" use="required" />
+                              <xs:attribute name="ChangeToCombo" type="xs:int" use="required" />
+                              <xs:attribute name="GuestsDishRating" type="xs:int" use="required" />
+                              <xs:attribute name="RateType" type="xs:int" use="required" />
+                              <xs:attribute name="MinimumTarifTime" type="xs:int" use="required" />
+                              <xs:attribute name="MaximumTarifTime" type="xs:int" use="required" />
+                              <xs:attribute name="IgnoredTarifTime" type="xs:int" use="required" />
+                              <xs:attribute name="MinTarifAmount" type="xs:int" use="required" />
+                              <xs:attribute name="MaxTarifAmount" type="xs:int" use="required" />
+                              <xs:attribute name="RoundTime" type="xs:int" use="required" />
+                              <xs:attribute name="TariffRoundRule" type="xs:int" use="required" />
+                              <xs:attribute name="MoneyRoundRule" type="xs:int" use="required" />
+                              <xs:attribute name="DefTarifTimeLimit" type="xs:int" use="required" />
+                              <xs:attribute name="ComboDiscount" type="xs:int" use="required" />
+                              <xs:attribute name="LargeImagePath" type="xs:string" use="required" />
+                              <xs:attribute name="HighLevelGroup1" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="HighLevelGroup2" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="HighLevelGroup3" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="HighLevelGroup4" type="xs:int" use="required" />
+                              <xs:attribute name="BarCodesText" type="xs:string" use="required" />
+                              <xs:attribute name="BarcodesFullInfo" type="xs:string" use="required" />
+                              <xs:attribute name="ItemKind" type="xs:int" use="required" />
+                              <xs:attribute name="ObjectSifr" type="xs:int" use="required" />
+                              <xs:attribute name="Rate" type="xs:long" use="required" />
+                              <xs:attribute name="HallPlanId" type="xs:unsignedInt" use="required" />
+                              <xs:attribute name="Hall" type="xs:int" use="required" />
+                              <xs:attribute name="IsLogin" type="xs:boolean" use="required" />
+                              <xs:attribute name="IsCurrentRes" type="xs:boolean" use="required" />
+                              <xs:attribute name="ModiSchemeType" type="xs:int" use="required" />
+                              <xs:attribute name="ImplOnUnprintedDish" type="xs:int" use="required" />
+                              <xs:attribute name="ImplOnDishVoid" type="xs:int" use="required" />
+                              <xs:attribute name="EditRight" type="xs:int" use="required" />
+                              <xs:attribute name="AutoOpen" type="xs:int" use="required" />
+                              <xs:attribute name="Dish" type="xs:int" use="required" />
+                              <xs:attribute name="MaxOneDish" type="xs:int" use="required" />
+                              <xs:attribute name="InputName" type="xs:string" use="required" />
+                              <xs:attribute name="ChangesPrice" type="xs:int" use="required" />
+                              <xs:attribute name="DefaultModifier" type="xs:int" use="required" />
+                              <xs:attribute name="DownLimit" type="xs:int" use="required" />
+                              <xs:attribute name="FreeCount" type="xs:int" use="required" />
+                              <xs:attribute name="ModiGroup" type="xs:int" use="required" />
+                              <xs:attribute name="ReadOnlyName" type="xs:string" use="required" />
+                              <xs:attribute name="ReplaceDefModifier" type="xs:int" use="required" />
+                              <xs:attribute name="ShQuantity" type="xs:int" use="required" />
+                              <xs:attribute name="SortNum" type="xs:int" use="required" />
+                              <xs:attribute name="UpLimit" type="xs:int" use="required" />
+                              <xs:attribute name="UseDownLimit" type="xs:int" use="required" />
+                              <xs:attribute name="UseUpLimit" type="xs:int" use="required" />
+                              <xs:attribute name="IgnoreDefaultForKitchen" type="xs:int" use="required" />
+                              <xs:attribute name="genGGGRNAME" type="xs:string" use="required"/>
+                       		  <xs:attribute name="genGGGTEL" type="xs:string" use="required"/>
+                              <xs:attribute name="genGGGADD" type="xs:string" use="required"/>
+                              <xs:attribute name="genGGGWEB" type="xs:string" use="required"/>
+                              <xs:attribute name="genGGGRCO" type="xs:string" use="required"/>
+                              <xs:attribute name="genSAPCODE" type="xs:string" use="required"/>
+                              <xs:attribute name="genGGGBRAND" type="xs:string" use="required"/>
+                              <xs:attribute name="genSAPBANKTERMINALID" type="xs:string" use="required"/>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="DataVersion" type="xs:int" use="required" />
+                  <xs:attribute name="ClassName" type="xs:string" use="required" />
+                  <xs:attribute name="Name" type="xs:string" use="required" />
+                  <xs:attribute name="MinIdent" type="xs:int" use="required" />
+                  <xs:attribute name="MaxIdent" type="xs:int" use="required" />
+                  <xs:attribute name="ViewRight" type="xs:int" use="required" />
+                  <xs:attribute name="UpdateRight" type="xs:int" use="required" />
+                  <xs:attribute name="ChildRight" type="xs:int" use="required" />
+                  <xs:attribute name="DeleteRight" type="xs:int" use="required" />
+                  <xs:attribute name="XMLExport" type="xs:int" use="required" />
+                  <xs:attribute name="XMLMask" type="xs:string" use="required" />
+                  <xs:attribute name="LeafCollectionCount" type="xs:int" use="required" />
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="CMD" type="xs:string" use="required" />
+            <xs:attribute name="Status" type="xs:string" use="required" />
+            <xs:attribute name="ErrorText" type="xs:string" use="required" />
+            <xs:attribute name="DateTime" type="xs:dateTime" use="required" />
+            <xs:attribute name="WorkTime" type="xs:int" use="required" />
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="RK7Reference">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Items">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="Item" maxOccurs="unbounded" minOccurs="0">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="LimitDishes">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="Data">
+                                  <xs:complexType>
+                                    <xs:simpleContent>
+                                      <xs:extension base="xs:string">
+                                        <xs:attribute type="xs:string" name="BinaryCoding" use="optional"/>
+                                      </xs:extension>
+                                    </xs:simpleContent>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="Childs">
+                            <xs:complexType mixed="true">
+                              <xs:sequence>
+                                <xs:element name="Child" maxOccurs="unbounded" minOccurs="0">
+                                  <xs:complexType>
+                                    <xs:simpleContent>
+                                      <xs:extension base="xs:string">
+                                        <xs:attribute type="xs:byte" name="ChildIdent" use="optional"/>
+                                        <xs:attribute type="xs:byte" name="IsTerminal" use="optional"/>
+                                      </xs:extension>
+                                    </xs:simpleContent>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                              <xs:attribute type="xs:string" name="ClassName" use="optional"/>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                        <xs:attribute type="xs:unsignedInt" name="Ident" use="optional"/>
+                        <xs:attribute type="xs:unsignedInt" name="ItemIdent" use="optional"/>
+                        <xs:attribute type="xs:int" name="SourceIdent" use="optional"/>
+                        <xs:attribute type="xs:string" name="GUIDString" use="optional"/>
+                        <xs:attribute type="xs:string" name="AssignChildsOnServer" use="optional"/>
+                        <xs:attribute type="xs:string" name="ActiveHierarchy" use="optional"/>
+                        <xs:attribute type="xs:string" name="Code" use="optional"/>
+                        <xs:attribute type="xs:string" name="Name" use="optional"/>
+                        <xs:attribute type="xs:string" name="AltName" use="optional"/>
+                        <xs:attribute type="xs:int" name="MainParentIdent" use="optional"/>
+                        <xs:attribute type="xs:string" name="Status" use="optional"/>
+                        <xs:attribute type="xs:byte" name="VisualType_Image" use="optional"/>
+                        <xs:attribute type="xs:int" name="VisualType_BColor" use="optional"/>
+                        <xs:attribute type="xs:int" name="VisualType_TextColor" use="optional"/>
+                        <xs:attribute type="xs:string" name="VisualType_Flags" use="optional"/>
+                        <xs:attribute type="xs:string" name="SalesTerms_Flag" use="optional"/>
+                        <xs:attribute type="xs:long" name="SalesTerms_StartSale" use="optional"/>
+                        <xs:attribute type="xs:long" name="SalesTerms_StopSale" use="optional"/>
+                        <xs:attribute type="xs:byte" name="RightLvl" use="optional"/>
+                        <xs:attribute type="xs:byte" name="AvailabilitySchedule" use="optional"/>
+                        <xs:attribute type="xs:string" name="UseStartSale" use="optional"/>
+                        <xs:attribute type="xs:string" name="UseStopSale" use="optional"/>
+                        <xs:attribute type="xs:int" name="Parent" use="optional"/>
+                        <xs:attribute type="xs:int" name="ExtCode" use="optional"/>
+                        <xs:attribute type="xs:int" name="HighLevelType" use="optional"/>
+                        <xs:attribute type="xs:string" name="RoundRule" use="optional"/>
+                        <xs:attribute type="xs:string" name="RoundMethod" use="optional"/>
+                        <xs:attribute type="xs:string" name="Flags" use="optional"/>
+                        <xs:attribute type="xs:string" name="RateClass" use="optional"/>
+                        <xs:attribute type="xs:byte" name="Group" use="optional"/>
+                        <xs:attribute type="xs:string" name="Format" use="optional"/>
+                        <xs:attribute type="xs:int" name="MInterface" use="optional"/>
+                        <xs:attribute type="xs:byte" name="Discount" use="optional"/>
+                        <xs:attribute type="xs:byte" name="TaxPayType" use="optional"/>
+                        <xs:attribute type="xs:int" name="TipCharge" use="optional"/>
+                        <xs:attribute type="xs:short" name="UseBonusPercent" use="optional"/>
+                        <xs:attribute type="xs:string" name="AutoFillMode" use="optional"/>
+                        <xs:attribute type="xs:byte" name="AuthPurpose" use="optional"/>
+                        <xs:attribute type="xs:byte" name="MinimalAmount" use="optional"/>
+                        <xs:attribute type="xs:string" name="NationalCurrency" use="optional"/>
+                        <xs:attribute type="xs:string" name="RestrictRecept" use="optional"/>
+                        <xs:attribute type="xs:string" name="PrintInPrecheck" use="optional"/>
+                        <xs:attribute type="xs:string" name="ExtraInfoNeeded" use="optional"/>
+                        <xs:attribute type="xs:string" name="ExtraInfoWithKB" use="optional"/>
+                        <xs:attribute type="xs:string" name="AuthorizeTerminal" use="optional"/>
+                        <xs:attribute type="xs:string" name="OpenBox" use="optional"/>
+                        <xs:attribute type="xs:string" name="DiscountAllDishes" use="optional"/>
+                        <xs:attribute type="xs:string" name="RestrictChangeOnThisInPay" use="optional"/>
+                        <xs:attribute type="xs:string" name="RestrictThisInChange" use="optional"/>
+                        <xs:attribute type="xs:string" name="BasicCurrency" use="optional"/>
+                        <xs:attribute type="xs:string" name="IgnoreInPDSSales" use="optional"/>
+                        <xs:attribute type="xs:string" name="AutoChange" use="optional"/>
+                        <xs:attribute type="xs:string" name="DontRoundChange" use="optional"/>
+                        <xs:attribute type="xs:string" name="UseComboCategory" use="optional"/>
+                        <xs:attribute type="xs:string" name="AllowPrepays" use="optional"/>
+                        <xs:attribute type="xs:string" name="NoRecalcForPaint" use="optional"/>
+                        <xs:attribute type="xs:short" name="UsedFiscRegUnfiscType" use="optional"/>
+                        <xs:attribute type="xs:int" name="UsedTaxPayType" use="optional"/>
+                        <xs:attribute type="xs:string" name="FiscRegUnfiscType" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FiscRegPayType1" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FiscRegPayType2" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FiscRegPayType3" use="optional"/>
+                        <xs:attribute type="xs:string" name="FutureFiscRegUnfiscType" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FutureFiscRegPayType1" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FutureFiscRegPayType2" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FutureFiscRegPayType3" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FutureTaxPayType" use="optional"/>
+                        <xs:attribute type="xs:string" name="ExtraInfoCaption" use="optional"/>
+                        <xs:attribute type="xs:byte" name="MagnCardType" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FCPayTransaction" use="optional"/>
+                        <xs:attribute type="xs:byte" name="FCSubAccount" use="optional"/>
+                        <xs:attribute type="xs:short" name="MaxPercent" use="optional"/>
+                        <xs:attribute type="xs:byte" name="ForEncashment" use="optional"/>
+                        <xs:attribute type="xs:short" name="CalcAsDiscount" use="optional"/>
+                        <xs:attribute type="xs:string" name="UseForReturn" use="optional"/>
+                        <xs:attribute type="xs:byte" name="ShowInReports" use="optional"/>
+                        <xs:attribute type="xs:long" name="Rate" use="optional"/>
+                        <xs:attribute name="ObjectSifr" type="xs:int" use="required" />
+                        <xs:attribute name="HallPlanId" type="xs:int" use="optional" />
+                        <xs:attribute name="IsLogin" type="xs:boolean" use="optional" />
+                        <xs:attribute name="IsCurrentRes" type="xs:boolean" use="optional" />
+                        <xs:attribute name="ModiSchemeType" type="xs:int" use="optional" />
+                        <xs:attribute name="ImplOnUnprintedDish" type="xs:int" use="optional" />
+                        <xs:attribute name="ImplOnDish" type="xs:int" use="optional" />
+                        <xs:attribute name="EditRight" type="xs:int" use="optional" />
+                        <xs:attribute name="AutoOpen" type="xs:int" use="optional" />
+                        <xs:attribute name="Dish" type="xs:int" use="optional" />
+                        <xs:attribute name="MaxOneDish" type="xs:int" use="optional" />
+                        <xs:attribute type="xs:string" name="genGGGRNAME" use="optional"/>
+                        <xs:attribute type="xs:string" name="genGGGTEL" use="optional"/>
+                        <xs:attribute type="xs:string" name="genGGGADD" use="optional"/>
+                        <xs:attribute type="xs:string" name="genGGGWEB" use="optional"/>
+                        <xs:attribute type="xs:string" name="genGGGRCO" use="optional"/>
+                        <xs:attribute type="xs:string" name="genSAPCODE" use="optional"/>
+                        <xs:attribute type="xs:string" name="genGGGBRAND" use="optional"/>
+                        <xs:attribute type="xs:string" name="genSAPBANKTERMINALID" use="optional"/>
+                        <xs:attribute type="xs:string" name="RKTypeIdent" use="optional"/>
+                        <xs:attribute type="xs:string" name="ObjectRefNo" use="optional"/>
+                        <xs:attribute type="xs:string" name="ObjectIdent" use="optional"/>
+                        <xs:attribute type="xs:string" name="PropertyVal" use="optional"/>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute type="xs:short" name="DataVersion"/>
+            <xs:attribute type="xs:string" name="ClassName"/>
+            <xs:attribute type="xs:string" name="Name"/>
+            <xs:attribute type="xs:byte" name="MinIdent"/>
+            <xs:attribute type="xs:byte" name="MaxIdent"/>
+            <xs:attribute type="xs:byte" name="ViewRight"/>
+            <xs:attribute type="xs:byte" name="UpdateRight"/>
+            <xs:attribute type="xs:byte" name="ChildRight"/>
+            <xs:attribute type="xs:byte" name="DeleteRight"/>
+            <xs:attribute type="xs:string" name="XMLExport"/>
+            <xs:attribute type="xs:string" name="XMLMask"/>
+            <xs:attribute type="xs:byte" name="LeafCollectionCount"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="ServerVersion" type="xs:string" use="required" />
+      <xs:attribute name="XmlVersion" type="xs:int" use="required" />
+      <xs:attribute name="NetName" type="xs:string" use="required" />
+      <xs:attribute name="Status" type="xs:string" use="required" />
+      <xs:attribute name="Processed" type="xs:int" use="required" />
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

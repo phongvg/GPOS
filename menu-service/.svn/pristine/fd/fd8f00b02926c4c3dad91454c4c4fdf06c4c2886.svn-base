@@ -1,0 +1,17 @@
+package com.gg.gpos.menu.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.gg.gpos.menu.entity.CoFoodItem;
+import com.gg.gpos.menu.entity.ToppingFoodItem;
+
+@Repository
+public interface ToppingFoodItemRepository extends JpaRepository<ToppingFoodItem, Long>{
+	ToppingFoodItem findByCoFoodItemAndFoodItemCode(CoFoodItem coFoodItem,String foodItemCode);
+	void deleteByCoFoodItem(CoFoodItem coFoodItem);
+	void deleteByCoFoodItemIn(List<CoFoodItem> coFoodItems);
+	List<ToppingFoodItem> findByCoFoodItem(CoFoodItem coFoodItem);
+}

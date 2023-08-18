@@ -1,0 +1,92 @@
+package com.gg.gpos.res.manager;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import com.gg.gpos.common.constant.SymbolEnum;
+import com.gg.gpos.res.dto.RestaurantDto;
+import com.gg.gpos.res.dto.RestaurantUserDto;
+import com.gg.gpos.res.entity.RestaurantUser;
+import com.gg.gpos.res.mapper.RestaurantMapper;
+import com.gg.gpos.res.mapper.RestaurantUserMapper;
+import com.gg.gpos.res.repository.RestaurantRepository;
+import com.gg.gpos.res.repository.RestaurantUserRepository;
+import com.gg.gpos.user.dto.AppUserDto;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class RestaurantUserManager {
+
+	@Autowired
+	RestaurantUserRepository restaurantUserRepository;
+	
+	@Autowired
+	RestaurantUserMapper restaurantUserMapper;
+	
+	@Autowired
+	RestaurantRepository restaurantRepository;
+	
+	@Autowired
+	RestaurantMapper restaurantMapper;
+	
+	public RestaurantUserDto get(Long id) {
+		return restaurantUserRepository.findById(id).map(restaurantUserMapper::entityToDto).orElse(null);
+	}
+	
+	public List<RestaurantUserDto> gets() {
+		return restaurantUserRepository.findAll().stream().map(restaurantUserMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public List<RestaurantUserDto> getsByUserName(String username){
+		log.info("Using to getsByUserName() method... ");
+		return restaurantUserRepository.findByUsername(username).stream().map(restaurantUserMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public List<RestaurantUserDto> getsByRestaurant(RestaurantDto restaurantDto){
+		log.info("Using to getsByRestaurant() method... ");
+		if(restaurantDto != null && restaurantDto.getCode()!= null) {
+			return restaurantUserRepository.findByRestaurantCode(restaurantDto.getCode()).stream().map(restaurantUserMapper::entityToDto).collect(Collectors.toList());
+		} else {
+			return new ArrayList<>();
+		}
+	}
+	
+	public RestaurantUserDto save(RestaurantUserDto restaurantUserDto) {
+		log.info("Entering save restaurantUser... ");
+		RestaurantUser restaurantUser = restaurantUserRepository.findByUsernameAndRestaurantCode(restaurantUserDto.getUsername(), restaurantUserDto.getRestaurantCode());
+		if (restaurantUser == null) {
+			restaurantUser = Optional.ofNullable(restaurantUserDto).map(restaurantUserMapper::dtoToEntity).orElse(null);
+			if(restaurantUserDto.getRestaurantCode()!= null ) {
+				restaurantUser.setRestaurant(Optional.ofNullable(restaurantRepository.findByCode(restaurantUserDto.getRestaurantCode())).orElse(null));
+			}
+			return Optional.ofNullable(restaurantUserRepository.save(restaurantUser)).map(restaurantUserMapper::entityToDto).orElse(null);
+		} else {
+			return Optional.ofNullable(restaurantUser).map(restaurantUserMapper::entityToDto).orElse(null);
+		}
+	}
+	
+	public void save(AppUserDto appUserDto) {
+		log.debug("PROCESS: SAVE RESTAURANT_USER, APP_USER: {}", appUserDto);
+		Set<String> keys = StringUtils.commaDelimitedListToSet(appUserDto.getSelectedRestaurantCodes());
+	    List<String> filterKey = keys.stream().filter(key -> !key.contains(SymbolEnum.UNDERSCORE.val)).collect(Collectors.toList());
+	    restaurantUserRepository.deleteByUsername(appUserDto.getUsername());
+        filterKey.stream().forEach(resCode -> {
+			RestaurantUser restaurantUser = new RestaurantUser();
+			restaurantUser.setUsername(appUserDto.getUsername());
+			restaurantUser.setRestaurant(restaurantRepository.findByCode(Integer.valueOf(resCode)));
+			restaurantUserRepository.save(restaurantUser);
+		});
+	}
+}

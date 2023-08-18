@@ -1,0 +1,59 @@
+package com.gg.gpos.menu.specification;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.persistence.criteria.Join;
+import javax.persistence.criteria.Predicate;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
+
+import com.gg.gpos.menu.dto.FoodItemDto;
+import com.gg.gpos.menu.entity.FoodGroup;
+import com.gg.gpos.menu.entity.FoodGroupItem;
+import com.gg.gpos.menu.entity.FoodItem;
+import com.gg.gpos.menu.entity.So;
+import com.gg.gpos.menu.entity.SoCategory;
+import com.gg.gpos.menu.entity.SoCategoryFoodGroup;
+
+@Component
+public class FoodItemSpecification {
+	private static final String RES_CODE = "restaurantCode";
+	
+	public Specification<FoodItem> filter(final FoodItemDto criteria){
+		return (root, cq, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			
+			if (criteria.getSoId() != null) {
+				Join<FoodItem, FoodGroupItem> foodGroupItemRoot = root.join("foodGroupItems");
+				predicates.add(cb.isNull(foodGroupItemRoot.get(RES_CODE)));
+				Join<FoodGroupItem, FoodGroup> foodGroupRoot = foodGroupItemRoot.join("foodGroup");
+				Join<FoodGroup, SoCategoryFoodGroup> soCategoryFoodGroupRoot = foodGroupRoot.join("soCategoryFoodGroups");
+				predicates.add(cb.isNull(soCategoryFoodGroupRoot.get(RES_CODE)));
+				Join<SoCategoryFoodGroup, SoCategory> soCategoryRoot = soCategoryFoodGroupRoot.join("soCategory");
+				predicates.add(cb.isNull(soCategoryRoot.get(RES_CODE)));
+				Join<SoCategory, So> soRoot = soCategoryRoot.join("so");
+				predicates.add(cb.equal(soRoot.get("id"), criteria.getSoId()));
+			}
+			if (StringUtils.isNotBlank(criteria.getCode())) {
+				predicates.add(cb.equal(root.get("code"), criteria.getCode()));
+			}
+			if (StringUtils.isNotBlank(criteria.getName())) {
+				predicates.add(cb.like(root.get("unsignedName"), "%" + criteria.getName() +"%"));
+			}
+			if (StringUtils.isNotBlank(criteria.getSapCode())) {
+				predicates.add(cb.like(root.get("sapCode"), "%" + criteria.getSapCode() +"%"));
+			}
+			if (criteria.getRestaurantCode() != null) {
+				Join<FoodItem, FoodGroupItem> foodGroupItemRoot = root.join("foodGroupItems");
+				predicates.add(cb.equal(foodGroupItemRoot.get(RES_CODE), criteria.getRestaurantCode()));
+			}
+			
+			
+			return cb.and(predicates.stream().toArray(Predicate[]::new));
+		};
+	}
+	
+}

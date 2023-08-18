@@ -1,0 +1,15 @@
+package com.gg.gpos.common.constant;
+
+public enum SyncStatusEnum {
+	WAITING("Waiting"),
+	INPROCESSING("Inprocessing"),
+	PROCESSING("Inprocessing"),
+	SUCCESS("Success"),
+	FAIL("Fail");
+	
+	public String val;
+	
+	private SyncStatusEnum(String val) {
+		this.val = val;
+	}
+}

@@ -1,0 +1,245 @@
+package com.gg.gpos.menu.dto;
+
+public class ISoCatalogDto {
+
+	//Table orderCategory
+	private String orderCategoryName;
+	private String orderCategoryCode;
+	
+	//Parent của food Group
+	private String foodGroupParentNameVn;
+	private String foodGroupParentNameEn;
+	private String foodGroupParentCode;
+	private String foodGroupParentType;
+	private Double foodGroupParentLevel;
+	
+	//groupOrder của parent
+	private Double groupOrder;
+	
+	//FoodGroup
+	private String foodGroupNameVn;
+	private String foodGroupNameEn;
+	private String foodGroupCode;
+	private String foodGroupType;
+	
+	//ItemOrder của foodGroupItem
+	private Double itemOrder;
+	
+	//FoodItem
+	private String foodItemCode;
+	private String foodItemNameVn;
+	
+	//code của table MenuType
+	private Double menuTypeCode;
+	private String srcImg;
+	
+	//status check import
+	private boolean status;
+	private String error;
+	private String sapCode;
+
+
+
+	public String getSapCode() {
+		return sapCode;
+	}
+
+	public void setSapCode(String sapCode) {
+		this.sapCode = sapCode;
+	}
+
+	public String getSrcImg() {
+		return srcImg;
+	}
+
+	public void setSrcImg(String srcImg) {
+		this.srcImg = srcImg;
+	}
+
+	public String getError() {
+		return error;
+	}
+
+	public void setError(String error) {
+		this.error = error;
+	}
+
+	public ISoCatalogDto() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ISoCatalogDto(String orderCategoryName, String orderCategoryCode, String foodGroupParentNameVn,
+			String foodGroupParentNameEn, String foodGroupParentCode, String foodGroupParentType,
+			Double foodGroupParentLevel, Double groupOrder, String foodGroupNameVn, String foodGroupNameEn,
+			String foodGroupCode, String foodGroupType, Double itemOrder, String foodItemCode, String foodItemNameVn,
+			Double menuTypeCode, boolean status) {
+		super();
+		this.orderCategoryName = orderCategoryName;
+		this.orderCategoryCode = orderCategoryCode;
+		this.foodGroupParentNameVn = foodGroupParentNameVn;
+		this.foodGroupParentNameEn = foodGroupParentNameEn;
+		this.foodGroupParentCode = foodGroupParentCode;
+		this.foodGroupParentType = foodGroupParentType;
+		this.foodGroupParentLevel = foodGroupParentLevel;
+		this.groupOrder = groupOrder;
+		this.foodGroupNameVn = foodGroupNameVn;
+		this.foodGroupNameEn = foodGroupNameEn;
+		this.foodGroupCode = foodGroupCode;
+		this.foodGroupType = foodGroupType;
+		this.itemOrder = itemOrder;
+		this.foodItemCode = foodItemCode;
+		this.foodItemNameVn = foodItemNameVn;
+		this.menuTypeCode = menuTypeCode;
+		this.status = status;
+	}
+
+	@Override
+	public String toString() {
+		return "ISoCatalogDto [orderCategoryName=" + orderCategoryName + ", orderCategoryCode=" + orderCategoryCode
+				+ ", foodGroupParentNameVn=" + foodGroupParentNameVn + ", foodGroupParentNameEn="
+				+ foodGroupParentNameEn + ", foodGroupParentCode=" + foodGroupParentCode + ", foodGroupParentType="
+				+ foodGroupParentType + ", foodGroupParentLevel=" + foodGroupParentLevel + ", groupOrder=" + groupOrder
+				+ ", foodGroupNameVn=" + foodGroupNameVn + ", foodGroupNameEn=" + foodGroupNameEn + ", foodGroupCode="
+				+ foodGroupCode + ", foodGroupType=" + foodGroupType + ", itemOrder=" + itemOrder + ", foodItemCode="
+				+ foodItemCode + ", foodItemNameVn=" + foodItemNameVn + ", menuTypeCode=" + menuTypeCode + ", status="
+				+ status + "]";
+	}
+
+	public boolean isStatus() {
+		return status;
+	}
+
+	public void setStatus(boolean status) {
+		this.status = status;
+	}
+
+	public String getOrderCategoryName() {
+		return orderCategoryName;
+	}
+
+	public void setOrderCategoryName(String orderCategoryName) {
+		this.orderCategoryName = orderCategoryName;
+	}
+
+	public String getOrderCategoryCode() {
+		return orderCategoryCode;
+	}
+
+	public void setOrderCategoryCode(String orderCategoryCode) {
+		this.orderCategoryCode = orderCategoryCode;
+	}
+
+	public String getFoodGroupParentNameVn() {
+		return foodGroupParentNameVn;
+	}
+
+	public void setFoodGroupParentNameVn(String foodGroupParentNameVn) {
+		this.foodGroupParentNameVn = foodGroupParentNameVn;
+	}
+
+	public String getFoodGroupParentNameEn() {
+		return foodGroupParentNameEn;
+	}
+
+	public void setFoodGroupParentNameEn(String foodGroupParentNameEn) {
+		this.foodGroupParentNameEn = foodGroupParentNameEn;
+	}
+
+	public String getFoodGroupParentCode() {
+		return foodGroupParentCode;
+	}
+
+	public void setFoodGroupParentCode(String foodGroupParentCode) {
+		this.foodGroupParentCode = foodGroupParentCode;
+	}
+
+	public String getFoodGroupParentType() {
+		return foodGroupParentType;
+	}
+
+	public void setFoodGroupParentType(String foodGroupParentType) {
+		this.foodGroupParentType = foodGroupParentType;
+	}
+
+	public Double getItemOrder() {
+		return itemOrder;
+	}
+
+	public void setItemOrder(Double itemOrder) {
+		this.itemOrder = itemOrder;
+	}
+
+	public String getFoodGroupNameVn() {
+		return foodGroupNameVn;
+	}
+
+	public void setFoodGroupNameVn(String foodGroupNameVn) {
+		this.foodGroupNameVn = foodGroupNameVn;
+	}
+
+	public String getFoodGroupNameEn() {
+		return foodGroupNameEn;
+	}
+
+	public void setFoodGroupNameEn(String foodGroupNameEn) {
+		this.foodGroupNameEn = foodGroupNameEn;
+	}
+
+	public String getFoodGroupCode() {
+		return foodGroupCode;
+	}
+
+	public void setFoodGroupCode(String foodGroupCode) {
+		this.foodGroupCode = foodGroupCode;
+	}
+
+	public String getFoodGroupType() {
+		return foodGroupType;
+	}
+
+	public void setFoodGroupType(String foodGroupType) {
+		this.foodGroupType = foodGroupType;
+	}
+
+	public Double getGroupOrder() {
+		return groupOrder;
+	}
+
+	public void setGroupOrder(Double groupOrder) {
+		this.groupOrder = groupOrder;
+	}
+
+	public String getFoodItemCode() {
+		return foodItemCode;
+	}
+
+	public void setFoodItemCode(String foodItemCode) {
+		this.foodItemCode = foodItemCode;
+	}
+
+	public String getFoodItemNameVn() {
+		return foodItemNameVn;
+	}
+
+	public void setFoodItemNameVn(String foodItemNameVn) {
+		this.foodItemNameVn = foodItemNameVn;
+	}
+
+	public Double getMenuTypeCode() {
+		return menuTypeCode;
+	}
+
+	public void setMenuTypeCode(Double menuTypeCode) {
+		this.menuTypeCode = menuTypeCode;
+	}
+
+	public Double getFoodGroupParentLevel() {
+		return foodGroupParentLevel;
+	}
+
+	public void setFoodGroupParentLevel(Double foodGroupParentLevel) {
+		this.foodGroupParentLevel = foodGroupParentLevel;
+	}
+
+}

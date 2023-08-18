@@ -1,0 +1,79 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+
+import com.gg.gpos.menu.dto.KaloGroupDto;
+import com.gg.gpos.menu.entity.CoFoodItem;
+import com.gg.gpos.menu.entity.KaloGroup;
+import com.gg.gpos.menu.mapper.KaloGroupMapper;
+import com.gg.gpos.menu.repository.CoFoodItemRepository;
+import com.gg.gpos.menu.repository.KaloGroupRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class KaloGroupManager {
+	@Autowired
+	private KaloGroupMapper kaloGroupMapper;
+	@Autowired
+	private KaloGroupRepository kaloGroupRepository;
+	@Autowired
+	private CoFoodItemRepository coFoodItemRepository;
+	
+	public Page<KaloGroupDto> gets(KaloGroupDto criteria){
+		log.debug("PROCESS: GETS KALO_GROUP, KALO_GROUP_DTO: {}", criteria);
+		Page<KaloGroup> page = kaloGroupRepository.findAll(PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(kaloGroupMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+	
+	public KaloGroupDto get(Long id) {
+		log.debug("PROCESS: GET KALO_GROUP BY ID, KALO_GROUP_ID: {}", id);
+		return kaloGroupRepository.findById(id).map(kaloGroupMapper::entityToDto).orElse(null);
+	}
+	
+	public KaloGroupDto save(KaloGroupDto kaloGroupDto) {
+		log.debug("PROCESS: SAVE KALO_GROUP, KALO_GROUP_DTO: {}", kaloGroupDto);
+		KaloGroup kaloGroup = Optional.ofNullable(kaloGroupDto).map(kaloGroupMapper::dtoToEntity).orElse(null);
+		return Optional.ofNullable(kaloGroupRepository.save(kaloGroup)).map(kaloGroupMapper::entityToDto).orElse(null);
+	}
+	
+	public boolean isUsedCode(String code) {
+		log.debug("PROCESS: CHECK KALO_GROUP_CODE IS EXISTING, KALO_GROUP_CODE: {}", code);
+		return kaloGroupRepository.findByCode(code) != null;
+	}
+	
+	public void delete(Long id) {
+		log.debug("PROCESS: DELETE KALO_GROUP BY ID, KALO_GROUP_ID: {}", id);
+		KaloGroup kaloGroup = new KaloGroup();
+		kaloGroup.setId(id);
+		kaloGroupRepository.delete(kaloGroup);
+	}
+	
+	public boolean isUsingInCoFoodItem(Long id) {
+		log.debug("PROCESS: CHECK KALO_GROUP USING IN CO_FOOD_ITEM, KALO_GROUP_ID: {}", id);
+		List<CoFoodItem> list = coFoodItemRepository.findByKaloGroupId(id);
+		return (list != null && !list.isEmpty());
+	}
+
+	public List<KaloGroupDto> gets(){
+		log.debug("Entering 'gets' method...");
+		return kaloGroupRepository.findAll().stream().map(kaloGroupMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public KaloGroupDto findByCode(String code) {
+		log.debug("Entering 'get' method...");
+		return Optional.ofNullable(kaloGroupRepository.findByCode(code)).map(kaloGroupMapper::entityToDto).orElse(null);
+	}
+}

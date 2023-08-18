@@ -1,0 +1,129 @@
+//package com.gg.gpos.integration.jms;
+//
+//import java.util.List;
+//import java.util.Map;
+//import java.util.stream.Collectors;
+//
+//import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.jms.annotation.JmsListener;
+//import org.springframework.stereotype.Component;
+//import org.springframework.util.CollectionUtils;
+//import org.springframework.util.StringUtils;
+//
+//import com.fasterxml.jackson.core.JsonProcessingException;
+//import com.gg.gpos.common.constant.ResultEnum;
+//import com.gg.gpos.common.constant.SyncStatusEnum;
+//import com.gg.gpos.common.constant.SystemParamEnum;
+//import com.gg.gpos.common.constant.TypeDataEnum;
+//import com.gg.gpos.common.json.RestaurantMenuDataSync;
+//import com.gg.gpos.integration.manager.MenuDataSyncManager;
+//import com.gg.gpos.integration.manager.RestaurantSyncManager;
+//import com.gg.gpos.integration.manager.SyncArchiveManager;
+//import com.gg.gpos.integration.manager.SyncManager;
+//import com.gg.gpos.reference.manager.SystemParameterManager;
+//import com.gg.gpos.res.dto.RestaurantDto;
+//import com.gg.gpos.res.manager.RestaurantManager;
+//import com.gg.gpos.res.manager.SyncStatusManager;
+//
+//import lombok.extern.slf4j.Slf4j;
+//
+//@Slf4j
+//@Component
+//public class MessageSyncMenuStatusToRestauranReceiver {
+//	@Autowired
+//	private SyncManager syncManager;
+//    @Autowired
+//    private SyncStatusManager syncStatusManager;
+//    @Autowired
+//	private SyncArchiveManager syncArchiveManager;
+//    @Autowired
+//	private RestaurantSyncManager restaurantSyncManager;
+//	@Autowired
+//	private SystemParameterManager systemParameterManager;
+//	@Autowired
+//	private RestaurantManager restaurantManager;
+//	@Autowired
+//	private MenuDataSyncManager menuDataSyncManager;
+//	
+//	private static final String QUEUE_SYNC_MENU_STATUS = "queue-sync-menu-status";
+//	
+//	/*
+//	 * QUEUE đồng bộ trạng thái của loại MENU
+//	 */
+//	@JmsListener(destination = QUEUE_SYNC_MENU_STATUS)
+//    public void listener(final List<RestaurantMenuDataSync> restaurantMenuDataSyncs){
+//    	log.debug("PROCESS LISTENER: QUEUE SYNC MENU STATUS: RESTAURANT_MENU_DATA_SYNCS: {}", restaurantMenuDataSyncs);
+//    	try {
+//    		
+//        	// Danh sách các mã nhà hàng được chọn để đồng bộ dữ liệu
+//    		List<String> resCodes = restaurantMenuDataSyncs.stream().map(item -> item.getResCode()).collect(Collectors.toList());
+//    		
+//    		// Một số biến cần dùng
+//			String typeData = TypeDataEnum.BUSINESS_DATA.val;
+//    		
+//        	// lấy danh sách nhà hàng đã chọn
+//        	List<RestaurantDto> restaurantDtos = restaurantManager.getRestaurantByRestaurantCodes(resCodes); 
+//        	
+//        	// Lấy thông tin một số API_URL
+//	    	Map<String, String> urls = systemParameterManager.gets(SystemParamEnum.API_BUSINESS_PREFIX.param); 
+//	    	String gatewayUrl = systemParameterManager.get(SystemParamEnum.API_GATEWAY_URL.param).getParamValue();
+//	    	String checkOffOnlineRestaurantUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_CHECK_STATUS_RESTAURANT_PATTERN.param); 
+//	    	
+//			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+//				// Lưu thông tin đánh dấu trạng thái đang được đồng bộ
+//				syncManager.saveBusinessDatas(restaurantDtos);
+//
+//				restaurantDtos.stream().forEach(restaurantDto ->{
+//					Integer restaurantCode = restaurantDto.getCode();
+//					String restaurantName = restaurantDto.getName();
+//					if(restaurantDto.getIp() != null && restaurantDto.getPort() != null) {
+//						// trường hợp CÓ thông tin nhà hàng thì kiểm tra xem server của nhà hàng co online không
+//						if(checkOnlineRestaurant(checkOffOnlineRestaurantUrl, restaurantCode)) {
+//							RestaurantMenuDataSync restaurantMenuDataSync = restaurantMenuDataSyncs.stream().filter(item -> String.valueOf(restaurantCode).equals(item.getResCode())).findAny().orElse(null);
+//							// Gửi thông tin các item
+//							String errors = menuDataSyncManager.sendBusinessDataToRestaurant(restaurantMenuDataSync, gatewayUrl, urls);
+//							if (StringUtils.hasLength(errors)) {
+//								// set lại trạng thái của nhà hàng là "Đồng bộ menu thất bại"
+//								syncStatusManager.saveSyncStatusIfSyncToRestaurantServerFail(restaurantDto, typeData);
+//					    		// lưu lại thông tin về lịch sử đồng bộ
+//								syncArchiveManager.saveWithStatusFail(restaurantCode, restaurantName, typeData, SyncStatusEnum.FAIL.val);
+//							} else {
+//								// set lại trạng thái của nhà hàng là "Đồng bộ menu thành công"
+//					    		syncStatusManager.saveSyncStatusIfSyncToRestaurantServerSucess(restaurantDto, typeData);
+//					    		// lưu lại thông tin về lịch sử đồng bộ
+//					    		syncArchiveManager.saveWithStatusSuccess(restaurantCode, restaurantName, typeData);
+//							}
+//						} else {
+//							// trường hợp không có thông tin nhà hàng thì lưu lại vào bảng "thông tin danh sách đồng bộ"
+//    						syncArchiveManager.saveWithStatusFail(restaurantCode, restaurantName, typeData, ResultEnum.RESTAURANT_OFFLINE.val);
+//    						// set lại trạng thái của nhà hàng là "Đồng bộ menu thất bại"
+//    						syncStatusManager.saveSyncStatusIfSyncToRestaurantServerFail(restaurantDto, typeData);
+//						}
+//					} else {
+//						// trường hợp không có thông tin nhà hàng thì lưu lại vào bảng "thông tin danh sách đồng bộ"
+//						syncArchiveManager.saveWithStatusFail(restaurantCode, restaurantName, typeData, ResultEnum.NOT_IP_OR_NOT_PORT.val);
+//						// set lại trạng thái của nhà hàng là "Đồng bộ menu thất bại"
+//						syncStatusManager.saveSyncStatusIfSyncToRestaurantServerFail(restaurantDto, typeData);
+//					}
+//					// Xóa thông tin "CÁC TIẾN TRÌNH ĐANG ĐỒNG BỘ"
+//					syncManager.deleteBusinessDataAfterSync(restaurantCode);
+//				});
+//				
+//			}
+//		} catch (Exception e) {
+//			log.error("ERROR PROCESS LISTENER: QUEUE SYNC MENU STATUS EXCEPTION: {}", e);
+//		}
+//    }
+//	
+//	private boolean checkOnlineRestaurant(String apiUrl, Integer resCode) {
+//    	log.debug("PROCESS FUNCTION: CHECK OFF/ONLINE RESTAURANT");    
+//    	boolean check;
+//    	try {
+//    		check = restaurantSyncManager.check(apiUrl,resCode);
+//		} catch (JsonProcessingException e) {
+//			check = false;
+//			e.printStackTrace();
+//		}
+//    	return check;
+//    }
+//}

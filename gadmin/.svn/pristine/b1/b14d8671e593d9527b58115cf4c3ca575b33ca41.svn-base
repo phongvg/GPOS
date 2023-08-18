@@ -1,0 +1,178 @@
+package com.gg.gpos.menu.controller;
+
+import java.util.List;
+import java.util.Locale;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
+import com.gg.gpos.menu.dto.CoDto;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Controller;
+import org.springframework.util.CollectionUtils;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.gg.gpos.common.constant.FunctionTypeEnum;
+import com.gg.gpos.common.constant.ModuleTypeEnum;
+import com.gg.gpos.common.constant.SizeImageEnum;
+import com.gg.gpos.common.constant.TypeRestaurantDataEditEnum;
+import com.gg.gpos.controller.BaseController;
+import com.gg.gpos.integration.dto.SyncDto;
+import com.gg.gpos.integration.manager.SyncManager;
+import com.gg.gpos.menu.dto.CoCategoryDto;
+import com.gg.gpos.menu.manager.CatalogDataEditManager;
+import com.gg.gpos.menu.manager.CoCategoryManager;
+import com.gg.gpos.menu.manager.CoManager;
+import com.gg.gpos.menu.manager.RestaurantDataEditManager;
+import com.gg.gpos.reference.dto.AttachmentDto;
+import com.gg.gpos.reference.manager.AttachmentManager;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Controller
+public class CoCategoryController extends BaseController {
+	@Autowired
+    private CoManager coManager;
+    @Autowired
+    private AttachmentManager attachmentManager;
+    @Autowired
+    private CoCategoryManager coCategoryManager;
+    @Autowired
+    private CatalogDataEditManager catalogDataEditManager;
+    @Autowired
+    private RestaurantDataEditManager restaurantDataEditManager;
+    @Autowired
+    private SyncManager syncManager;
+
+    @PostMapping("/coCategory/upload")
+    @ResponseBody
+    public String uploadPhotos (@Valid CoCategoryDto coCategoryDto) {
+        log.info("ENTERING 'UPLOAD DIGITAL-MENU' METHOD...");
+        String result = "";
+        try {
+            if(coCategoryDto.getDigitalMenuPhotos() != null) {
+                if(coCategoryDto.getCoId() != null) {
+                    result = attachmentManager.saveDigitalMenuFiles(coCategoryDto.getDigitalMenuPhotos(),appProperties.getAttachmentPath(), appProperties.getAttachmentContextPath(), new StringBuilder().append("COMENUID").append(coCategoryDto.getCoId()).toString());
+                } else {
+                    result = attachmentManager.saveDigitalMenuFiles(coCategoryDto.getDigitalMenuPhotos(),appProperties.getAttachmentPath(), appProperties.getAttachmentContextPath(), new StringBuilder().append("RESTAURANTCODE").append(coCategoryDto.getRestaurantCode()).toString());
+                }
+            }
+        } catch (Exception e) {
+            log.error("ERROR UPLOAD DIGITAL-MENU EXCEPTION: {}", e);
+        }
+        return result;
+    }
+
+    @PostMapping("/coCategory/update-photo")
+    @ResponseBody
+    public String updatePhotos (@Valid CoCategoryDto coCategoryDto) {
+        log.info("ENTERING 'UPDATE DIGITAL-MENU' METHOD...");
+        String result = "";
+        try {
+            if(coCategoryDto.getAvatar() != null) {
+                if(coCategoryDto.getCoId() != null) {
+                    result = attachmentManager.saveDigitalMenuFile(coCategoryDto.getAvatar(),appProperties.getAttachmentPath(), appProperties.getAttachmentContextPath(), new StringBuilder().append("COMENUID").append(coCategoryDto.getCoId()).toString());
+                } else {
+                    result = attachmentManager.saveDigitalMenuFile(coCategoryDto.getAvatar(),appProperties.getAttachmentPath(), appProperties.getAttachmentContextPath(), new StringBuilder().append("RESTAURANTCODE").append(coCategoryDto.getRestaurantCode()).toString());
+                }
+            }
+        } catch (Exception e) {
+            log.error("ERROR UPDATE DIGITAL-MENU EXCEPTION: {}", e);
+        }
+        return result;
+    }
+    /*
+     * Off CO_CATEGORY
+     */
+//    @PostMapping("/cag/co-menu/coCategory/off")
+//    public String offCoCategoryMenu(@Valid CoCategoryDto coCategoryDto, BindingResult bindingResult, HttpServletRequest request) {
+//        log.info("ENTERING 'OFF CO_CATEGORY MENU' METHOD...");
+//        String view = "";
+//        try {
+//        	 Locale locale = request.getLocale();
+//             if(coCategoryDto.getRestaurantCode() != null) {
+//             	view = "redirect:/res/co/soCategory/list?rCode="+ coCategoryDto.getRestaurantCode();
+//             	restaurantDataEditManager.save(String.valueOf(coCategoryDto.getId()), TypeRestaurantDataEditEnum.CO_CATEGORY.val, coCategoryDto.getRestaurantCode());
+//             } else {
+//             	view = "redirect:/co/soCategory/list?cId=" + coCategoryDto.getCoId();
+//             	coManager.saveAfterChangeCatalog(coCategoryDto.getCoId());
+//             	catalogDataEditManager.save(TypeRestaurantDataEditEnum.CO_CATEGORY.val, coCategoryDto.getCoId(), String.valueOf(coCategoryDto.getId()));
+//             }
+//             if (bindingResult.hasErrors()) {
+//             	addError(request, bindingResult.getAllErrors().toString());
+//                 return view;
+//             }
+//             if(coCategoryDto.getPhotos().size() > SizeImageEnum.FILE_SIZE.sizeImage) {
+//            	 addError(request, getText("soCategory.update.image.fail", request.getLocale()));
+//            	 return view;
+//             }
+//             // Lưu thông tin ảnh và video của menu
+//         	attachmentManager.savedCoCategoryAttachment(coCategoryDto, appProperties.getAttachmentPath(), appProperties.getAttachmentContextPath());
+//         	// Off menu và gửi vào QUEUE để gửi thông tin xuống nhà hàng
+//         	List<SyncDto> syncDtos = coCategoryManager.offCoCategory(coCategoryDto);
+//         	if(!CollectionUtils.isEmpty(syncDtos)) {
+//         		syncManager.savedSyncAfterOffCoCategory(syncDtos);
+//         	}
+//            addMessage(request, getText("soCategory.updated", locale));
+//		} catch (Exception e) {
+//			addError(request, e.getMessage());
+//			log.error("ERROR OFF CO_CATEGORY MENU EXCEPTION: {}", e);
+//		}
+//        return view;
+//    }
+
+//    @GetMapping("/cag/co-menu/coCategory/list")
+//    public ModelAndView list(@RequestParam(value="coId", required = true)Long coId, HttpServletRequest request) {
+//    	log.info("ENTERING 'LIST CO_CATEGORY IN CATALOG' METHOD...");
+//		ModelAndView modelAndView = new ModelAndView("cag/co-menu/co-category-list");
+//		if(coId != null) {
+//			CoCategoryDto criteria = new CoCategoryDto();
+//			criteria.setPage(appProperties.getDefaultPage());
+//			criteria.setSize(appProperties.getDefaultPageSize());
+//			criteria.setCoId(coId);
+//			Page<CoCategoryDto> pages = coCategoryManager.gets(criteria);
+//			pages.getContent().forEach(coCategory ->{
+//				AttachmentDto avatar = attachmentManager.getByModuleIdAndModuleTypeAndFunctionType(coCategory.getId(), ModuleTypeEnum.CO_CATEGORY.val, FunctionTypeEnum.AVATAR.val);
+//				if(avatar != null) {
+//					coCategory.setAvatarUrl(avatar.getUrl());
+//					coCategory.setAvatarName(avatar.getFileName());
+//				}
+//			});
+//			modelAndView.addObject("page", pages);
+//			modelAndView.addObject("criteria",criteria);
+//		}else {
+//    		modelAndView.setViewName("redirect:/co/catalog-form");
+//    		addError(request, getText("co.not.created", request.getLocale()));
+//		}
+//        return modelAndView;
+//    }
+//    
+//    @PostMapping("/cag/co-menu/coCategory/list")
+//    public ModelAndView search(@Valid CoCategoryDto criteria) {
+//    	log.info("ENTERING 'SEARCH CO_CATEGORY IN CATALOG' METHOD...");
+//		ModelAndView modelAndView = new ModelAndView("catalog-co-menu-list");
+//		if(criteria != null && criteria.getSize() == null) {
+//			criteria.setPage(appProperties.getDefaultPage());
+//			criteria.setSize(appProperties.getDefaultPageSize());
+//		}
+//		Page<CoCategoryDto> pages = coCategoryManager.gets(criteria);
+//		pages.getContent().forEach(coCategory ->{
+//			AttachmentDto avatar = attachmentManager.getByModuleIdAndModuleTypeAndFunctionType(coCategory.getId(), ModuleTypeEnum.CO_CATEGORY.val, FunctionTypeEnum.AVATAR.val);
+//			if(avatar != null) {
+//				coCategory.setAvatarUrl(avatar.getUrl());
+//				coCategory.setAvatarName(avatar.getFileName());
+//			}
+//		});
+//		modelAndView.addObject("page", pages);
+//		modelAndView.addObject("criteria",criteria);
+//        return modelAndView;
+//    }
+
+}

@@ -1,0 +1,186 @@
+//package com.gg.gpos.integration.jms;
+//
+//import java.util.ArrayList;
+//import java.util.List;
+//import java.util.Map;
+//import java.util.Set;
+//import java.util.stream.Collectors;
+//
+//import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.jms.annotation.JmsListener;
+//import org.springframework.stereotype.Component;
+//import org.springframework.util.CollectionUtils;
+//import org.springframework.util.StringUtils;
+//
+//import com.fasterxml.jackson.core.JsonProcessingException;
+//import com.gg.gpos.common.constant.ResultEnum;
+//import com.gg.gpos.common.constant.SymbolEnum;
+//import com.gg.gpos.common.constant.SyncStatusEnum;
+//import com.gg.gpos.common.constant.SystemParamEnum;
+//import com.gg.gpos.common.constant.TypeDataEnum;
+//import com.gg.gpos.common.json.FileContent;
+//import com.gg.gpos.common.json.RestaurantMenuDataSync;
+//import com.gg.gpos.integration.dto.QueueDto;
+//import com.gg.gpos.integration.manager.MenuDataSyncManager;
+//import com.gg.gpos.integration.manager.RestaurantSyncManager;
+//import com.gg.gpos.integration.manager.SyncArchiveManager;
+//import com.gg.gpos.integration.manager.SyncManager;
+//import com.gg.gpos.menu.manager.CatalogApplyToRestaurantManager;
+//import com.gg.gpos.menu.manager.CatalogDataEditManager;
+//import com.gg.gpos.menu.manager.RestaurantDataEditManager;
+//import com.gg.gpos.menu.manager.SyncCoMenuManager;
+//import com.gg.gpos.reference.manager.SystemParameterManager;
+//import com.gg.gpos.res.dto.RestaurantDto;
+//import com.gg.gpos.res.manager.RestaurantManager;
+//import com.gg.gpos.res.manager.SyncStatusManager;
+//
+//import lombok.extern.slf4j.Slf4j;
+//@Slf4j
+//@Component
+//public class MessageSyncCoMenuToRestaurantReceiver {
+//	@Autowired
+//	private SyncManager syncManager;
+//    @Autowired
+//    private SyncStatusManager syncStatusManager;
+//    @Autowired
+//    private RestaurantDataEditManager restaurantDataEditManager;
+//    @Autowired
+//	private SyncArchiveManager syncArchiveManager;
+//    @Autowired
+//    private CatalogDataEditManager catalogDataEditManager;
+//    @Autowired
+//    private CatalogApplyToRestaurantManager catalogApplyToRestaurantManager;
+//    @Autowired
+//	private RestaurantSyncManager restaurantSyncManager;
+//	@Autowired
+//	private SystemParameterManager systemParameterManager;
+//	@Autowired
+//	private RestaurantManager restaurantManager;
+//	@Autowired
+//	private SyncCoMenuManager syncCoMenuManager;
+//	@Autowired
+//	private MenuDataSyncManager menuDataSyncManager;
+//	@Autowired
+//    private MessageSender messageSender;
+//	
+//	private static final String QUEUE_SYNC_CO_MENU = "queue-sync-co-menu";
+//	
+//	/*
+//	 * QUEUE đồng bộ từ danh mục CO_MENU xuống SERVER NHÀ HÀNG
+//	 */
+//	@JmsListener(destination = QUEUE_SYNC_CO_MENU)
+//    public void listener(final QueueDto queueDto){
+//    	log.debug("PROCESS LISTENER: QUEUE SYNC CO_MENU TO RESTAURANT, QUEUE_DTO: {}", queueDto);
+//    	try {
+//    		// Danh sách nhà hàng bị lỗi trước khi gửi dữ liệu (Lỗi không có IP/PORT, Lỗi nhà hàng đã offline)
+//    		List<RestaurantDto> restaurantSyncFailDtos = new ArrayList<>();
+//    		
+//    		Set<String> keys = StringUtils.commaDelimitedListToSet(queueDto.getSelectedRestaurantCodes());
+//        	// Danh sách các mã nhà hàng được chọn để đồng bộ dữ liệu
+//    		List<String> resCodes = keys.stream().filter(key -> {
+//        		return !key.contains(SymbolEnum.UNDERSCORE.val);
+//        	}).collect(Collectors.toList());
+//    		
+//    		// Một số biến cần dùng
+//			String typeData = TypeDataEnum.BUSINESS_CO_MENU_DATA.val;
+//			String syncStatusTypeData = TypeDataEnum.BUSINESS_DATA.val;
+//    		Long coMenuId = queueDto.getId();
+//        	Boolean isOverride = queueDto.getOverride();
+//    		
+//        	// Lấy danh sách nhà hàng đang được áp dụng danh mục SO_MENU này
+//        	List<Integer> restaurantCodeApplies = catalogApplyToRestaurantManager.getRestaurantCodeByCoId(coMenuId);
+//        	// lấy danh sách nhà hàng đã chọn
+//        	List<RestaurantDto> restaurantDtos = restaurantManager.getRestaurantByRestaurantCodes(resCodes);
+//        	// Lấy thông tin một số API_URL
+//        	Map<String, String> urls = systemParameterManager.gets(SystemParamEnum.API_BUSINESS_PREFIX.param); 
+//        	String gatewayUrl = systemParameterManager.get(SystemParamEnum.API_GATEWAY_URL.param).getParamValue();
+//	    	String checkOffOnlineRestaurantUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_CHECK_STATUS_RESTAURANT_PATTERN.param); 
+//	    	String apiUrlFile = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_FILESAVE_PATTERN.param);
+//	    	String gatewayImageUrl = urls.get(SystemParamEnum.API_BUSINESS_GATEWAY_IMAGE_URL_PATTERN.param);
+//			Map<String, Object> mapDataInCatalog = syncCoMenuManager.getCoMenuDataSync(coMenuId);
+//        	
+//			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+//				// Lưu thông tin đánh dấu trạng thái đang được đồng bộ
+//				syncManager.saveSyncCoMenus(restaurantDtos);
+//						
+//				restaurantDtos.stream().forEach(restaurantDto ->{
+//					Integer restaurantCode = restaurantDto.getCode();
+//					String restaurantName = restaurantDto.getName();
+//					if(restaurantDto.getIp() != null && restaurantDto.getPort() != null) {
+//						// trường hợp CÓ thông tin nhà hàng thì kiểm tra xem server của nhà hàng co online không
+//						if(checkOnlineRestaurant(checkOffOnlineRestaurantUrl, restaurantCode)) {
+//							// Thực hiện đồng bộ thông tin xuống nhà hàng trước sau đó mới gửi thông tin đã đồng bộ từ DANH MỤC -> NHÀ HÀNG đến SERVER của NHÀ HÀNG
+//							RestaurantMenuDataSync restaurantMenuDataSync = syncCoMenuManager.syncDataFromCatalogToServerRestaurant(coMenuId, restaurantCode, mapDataInCatalog, restaurantCodeApplies, isOverride, restaurantName, apiUrlFile, gatewayImageUrl);
+//							
+////							// Gửi ảnh vào QUEUE
+//							if(!CollectionUtils.isEmpty(restaurantMenuDataSync.getFileContents())) {
+//				        		List<FileContent> fileContents = restaurantMenuDataSync.getFileContents();
+//								// Lưu thông tin đánh dấu trạng thái đang được đồng bộ
+//								syncManager.saveSyncFileData(restaurantDto, fileContents.size());
+//				        		messageSender.publish(fileContents);    		
+//							}
+//							
+//							// Gửi thông tin các item
+//							String errors = menuDataSyncManager.sendBusinessDataToRestaurant(restaurantMenuDataSync, gatewayUrl, urls);
+//							if (StringUtils.hasLength(errors)) {
+//								// set lại trạng thái của nhà hàng là "Đồng bộ menu thất bại"
+//								syncStatusManager.saveSyncStatusIfSyncToRestaurantServerFail(restaurantDto, syncStatusTypeData);
+//					    		// lưu lại thông tin về lịch sử đồng bộ
+//        						syncArchiveManager.saveWithStatusFail(restaurantCode, restaurantName, typeData, SyncStatusEnum.FAIL.val);
+//							} else {
+//								// set lại trạng thái của nhà hàng là "Đồng bộ menu thành công"
+//					    		syncStatusManager.saveSyncStatusIfSyncToRestaurantServerSucess(restaurantDto, syncStatusTypeData);
+//					    		// lưu lại thông tin về lịch sử đồng bộ
+//					    		syncArchiveManager.saveWithStatusSuccess(restaurantCode, restaurantName, typeData);
+//					    		// Xóa dữ liệu lưu trữ thông tin các item đã chỉnh sửa ở dưới nhà hàng nếu đồng bộ thành công
+//					    		restaurantDataEditManager.deleteDataCoMenuEdit(restaurantCode);
+//							}
+//						} else {
+//							// trường hợp không có thông tin nhà hàng thì lưu lại vào bảng "thông tin danh sách đồng bộ"
+//    						syncArchiveManager.saveWithStatusFail(restaurantCode, restaurantName, typeData, ResultEnum.RESTAURANT_OFFLINE.val);
+//    						// set lại trạng thái của nhà hàng là "Đồng bộ menu thất bại"
+//    						syncStatusManager.saveSyncStatusIfSyncToRestaurantServerFail(restaurantDto, syncStatusTypeData);
+//    						//Thêm vào list các nhà hàng đồng bộ lỗi để thực hiện CLONE dữ liệu xuống DANH SÁCH NHÀ HÀNG
+//    						restaurantSyncFailDtos.add(restaurantDto);
+//						}
+//					} else {
+//						// trường hợp không có thông tin nhà hàng thì lưu lại vào bảng "thông tin danh sách đồng bộ"
+//						syncArchiveManager.saveWithStatusFail(restaurantCode, restaurantName, typeData, ResultEnum.NOT_IP_OR_NOT_PORT.val);
+//						// set lại trạng thái của nhà hàng là "Đồng bộ menu thất bại"
+//						syncStatusManager.saveSyncStatusIfSyncToRestaurantServerFail(restaurantDto, syncStatusTypeData);
+//						// Thêm vào list các nhà hàng đồng bộ lỗi để thực hiện CLONE dữ liệu xuống DANH SÁCH NHÀ HÀNG
+//						restaurantSyncFailDtos.add(restaurantDto);
+//					}
+//					
+//					// Xóa thông tin "CÁC TIẾN TRÌNH ĐANG ĐỒNG BỘ"
+//			    	syncManager.deleteDataCoMenuAfterSync(restaurantCode);
+//				});
+//				
+//				// Thực hiện CLONE dữ liệu đối với các nhà hàng bị lỗi
+//				if(!CollectionUtils.isEmpty(restaurantSyncFailDtos)) {
+//					restaurantSyncFailDtos.stream().forEach(restaurantSyncFail ->{
+//						// Thực hiện đồng bộ thông tin xuống nhà hàng
+//						syncCoMenuManager.syncDataFromCatalogToServerRestaurant(coMenuId, restaurantSyncFail.getCode(), mapDataInCatalog, restaurantCodeApplies, isOverride, restaurantSyncFail.getName(), apiUrlFile, gatewayImageUrl);
+//					});
+//				}
+//				
+//				// Xóa các dữ liệu lưu trữ thông tin các Item đã chỉnh sửa ở trong danh mục CO_MENU (Các dữ liệu này chỉ phục vụ cho việc đồng bộ update)
+//				catalogDataEditManager.deleteDataCoMenuEdit(coMenuId);
+//			}
+//		} catch (Exception e) {
+//			log.error("PROCESS LISTENER: QUEUE SYNC GROUP_PARAM TO RESTAURANT EXCEPTION: {}", e);
+//		}
+//    }
+//	
+//	private boolean checkOnlineRestaurant(String apiUrl, Integer resCode) {
+//    	log.debug("PROCESS FUNCTION: CHECK OFF/ONLINE RESTAURANT");    
+//    	boolean check;
+//    	try {
+//    		check = restaurantSyncManager.check(apiUrl,resCode);
+//		} catch (JsonProcessingException e) {
+//			check = false;
+//			e.printStackTrace();
+//		}
+//    	return check;
+//    }
+//}

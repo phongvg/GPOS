@@ -1,0 +1,174 @@
+package com.gg.gpos.menu.dto;
+
+public class ICoCategoryDto {
+	private String orderCategoryCode;
+	private String nameVn;
+	private String nameEn;
+	private String descVn;
+	private String descEn;
+	private String srcImg;
+	private String srcImgIntros;
+	private String subGroupCodes;
+	private Double menuType;
+	private String alcDisplay;
+	private String bfDisplay;
+	private String drinkDisplay;
+	private String alcEnDisplay;
+	private String bfEnDisplay;
+	private String drinkEnDisplay;
+	private String videoIntroMenu;
+	private Double positionNumber;
+	private String imgIntroRes;
+	private String videoIntroRes;
+	
+	private String diplayFoodGroup;
+	
+	public String getDiplayFoodGroup() {
+		return diplayFoodGroup;
+	}
+	public void setDiplayFoodGroup(String diplayFoodGroup) {
+		this.diplayFoodGroup = diplayFoodGroup;
+	}
+	//status check import
+	private boolean status;
+	private String error;
+	
+	public String getError() {
+		return error;
+	}
+	public void setError(String error) {
+		this.error = error;
+	}
+	public boolean isStatus() {
+		return status;
+	}
+	public void setStatus(boolean status) {
+		this.status = status;
+	}
+	public Double getPositionNumber() {
+		return positionNumber;
+	}
+	public void setPositionNumber(Double positionNumber) {
+		this.positionNumber = positionNumber;
+	}
+	public String getAlcEnDisplay() {
+		return alcEnDisplay;
+	}
+	public void setAlcEnDisplay(String alcEnDisplay) {
+		this.alcEnDisplay = alcEnDisplay;
+	}
+	public String getBfEnDisplay() {
+		return bfEnDisplay;
+	}
+	public void setBfEnDisplay(String bfEnDisplay) {
+		this.bfEnDisplay = bfEnDisplay;
+	}
+	public String getDrinkEnDisplay() {
+		return drinkEnDisplay;
+	}
+	public void setDrinkEnDisplay(String drinkEnDisplay) {
+		this.drinkEnDisplay = drinkEnDisplay;
+	}
+	public String getVideoIntroMenu() {
+		return videoIntroMenu;
+	}
+	public void setVideoIntroMenu(String videoIntroMenu) {
+		this.videoIntroMenu = videoIntroMenu;
+	}
+	public String getImgIntroRes() {
+		return imgIntroRes;
+	}
+	public void setImgIntroRes(String imgIntroRes) {
+		this.imgIntroRes = imgIntroRes;
+	}
+	public String getVideoIntroRes() {
+		return videoIntroRes;
+	}
+	public void setVideoIntroRes(String videoIntroRes) {
+		this.videoIntroRes = videoIntroRes;
+	}
+	public String getOrderCategoryCode() {
+		return orderCategoryCode;
+	}
+	public void setOrderCategoryCode(String orderCategoryCode) {
+		this.orderCategoryCode = orderCategoryCode;
+	}
+	public String getNameVn() {
+		return nameVn;
+	}
+	public void setNameVn(String nameVn) {
+		this.nameVn = nameVn;
+	}
+	public String getNameEn() {
+		return nameEn;
+	}
+	public void setNameEn(String nameEn) {
+		this.nameEn = nameEn;
+	}
+	public String getDescVn() {
+		return descVn;
+	}
+	public void setDescVn(String descVn) {
+		this.descVn = descVn;
+	}
+	public String getDescEn() {
+		return descEn;
+	}
+	public void setDescEn(String descEn) {
+		this.descEn = descEn;
+	}
+	public String getSrcImg() {
+		return srcImg;
+	}
+	public void setSrcImg(String srcImg) {
+		this.srcImg = srcImg;
+	}
+	public String getSrcImgIntros() {
+		return srcImgIntros;
+	}
+	public void setSrcImgIntros(String srcImgIntros) {
+		this.srcImgIntros = srcImgIntros;
+	}
+	public String getSubGroupCodes() {
+		return subGroupCodes;
+	}
+	public void setSubGroupCodes(String subGroupCodes) {
+		this.subGroupCodes = subGroupCodes;
+	}
+	public Double getMenuType() {
+		return menuType;
+	}
+	public void setMenuType(Double menuType) {
+		this.menuType = menuType;
+	}
+	public String getAlcDisplay() {
+		return alcDisplay;
+	}
+	public void setAlcDisplay(String alcDisplay) {
+		this.alcDisplay = alcDisplay;
+	}
+	public String getBfDisplay() {
+		return bfDisplay;
+	}
+	public void setBfDisplay(String bfDisplay) {
+		this.bfDisplay = bfDisplay;
+	}
+	public String getDrinkDisplay() {
+		return drinkDisplay;
+	}
+	public void setDrinkDisplay(String drinkDisplay) {
+		this.drinkDisplay = drinkDisplay;
+	}
+	@Override
+	public String toString() {
+		return "ICoCategoryDto [orderCategoryCode=" + orderCategoryCode + ", nameVn=" + nameVn + ", nameEn=" + nameEn
+				+ ", descVn=" + descVn + ", descEn=" + descEn + ", srcImg=" + srcImg + ", srcImgIntros=" + srcImgIntros
+				+ ", subGroupCodes=" + subGroupCodes + ", menuType=" + menuType + ", alcDisplay=" + alcDisplay
+				+ ", bfDisplay=" + bfDisplay + ", drinkDisplay=" + drinkDisplay + ", alcEnDisplay=" + alcEnDisplay
+				+ ", bfEnDisplay=" + bfEnDisplay + ", drinkEnDisplay=" + drinkEnDisplay + ", videoIntroMenu="
+				+ videoIntroMenu + ", positionNumber=" + positionNumber + ", imgIntroRes=" + imgIntroRes
+				+ ", videoIntroRes=" + videoIntroRes + ", status=" + status + "]";
+	}
+	
+	
+}

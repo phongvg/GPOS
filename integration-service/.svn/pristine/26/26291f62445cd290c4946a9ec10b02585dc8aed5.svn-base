@@ -1,0 +1,730 @@
+package com.gg.gpos.integration.manager;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gg.gpos.common.constant.HeaderEnum;
+import com.gg.gpos.common.constant.HttpStatusEnum;
+import com.gg.gpos.common.constant.MapKeyEnum;
+import com.gg.gpos.common.constant.StatusEnum;
+import com.gg.gpos.common.constant.SymbolEnum;
+import com.gg.gpos.common.constant.SystemParamEnum;
+import com.gg.gpos.common.exception.SystemException;
+import com.gg.gpos.common.json.CheckStatusResponse;
+import com.gg.gpos.common.json.ConfigCOCategory;
+import com.gg.gpos.common.json.ConfigCOMenuItem;
+import com.gg.gpos.common.json.ConfigCOModifier;
+import com.gg.gpos.common.json.ConfigCOSpecialType;
+import com.gg.gpos.common.json.ConfigHallplan;
+import com.gg.gpos.common.json.ConfigMenuEngineering;
+import com.gg.gpos.common.json.ConfigParam;
+import com.gg.gpos.common.json.ConfigPlace;
+import com.gg.gpos.common.json.ConfigPrintGroup;
+import com.gg.gpos.common.json.ConfigPrinter;
+import com.gg.gpos.common.json.JsonDeleteCOMenuItem;
+import com.gg.gpos.common.json.JsonDeleteCoCategory;
+import com.gg.gpos.common.json.JsonKaloGroup;
+import com.gg.gpos.common.json.JsonMenuGroupDetail;
+import com.gg.gpos.common.json.MasterDataSync;
+import com.gg.gpos.common.json.RestaurantSync;
+import com.gg.gpos.common.json.SyncResponse;
+import com.gg.gpos.common.json.Views;
+import com.gg.gpos.integration.dto.ResponseMessage;
+import com.gg.gpos.integration.dto.Restaurant;
+import com.gg.gpos.integration.exception.IntegrationException;
+import com.gg.gpos.res.dto.BrandDto;
+import com.gg.gpos.res.dto.DistrictDto;
+import com.gg.gpos.res.dto.ProvinceBrandDto;
+import com.gg.gpos.res.dto.ProvinceDto;
+import com.gg.gpos.res.dto.RestaurantDto;
+import com.gg.gpos.res.dto.ZoneDto;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+public class RestaurantSyncManager {
+	private static final String ERROR = "ERROR: ";
+	
+	/*
+	 * Sync master data to Restaurant
+	*/
+	public Map<String, Object> syncRestaurantFromServer(String referenceDataUrl) throws IntegrationException {
+		log.info("Entering syncRestaurant()... ");
+
+		Map<String, Object> map = new HashMap<>();
+	    RestTemplate restTemplate = new RestTemplate();
+		
+		// Set the Accept and Content type header
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8));
+		headers.setAccept(Collections.singletonList(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)));
+		HttpEntity<?> requestEntity = new HttpEntity<>(headers);
+		ResponseEntity<ResponseMessage> response = restTemplate.exchange(referenceDataUrl, HttpMethod.GET, requestEntity, ResponseMessage.class);
+		
+		if (HttpStatus.OK.equals(response.getStatusCode())) {
+			Set<ZoneDto> zones = new HashSet<>();
+			Set<ProvinceDto> provinces = new HashSet<>();
+			Set<DistrictDto> districts = new HashSet<>();
+			Set<BrandDto> brands = new HashSet<>();
+			Set<ProvinceBrandDto> provinceBrands = new HashSet<>();
+
+			Map<String, ZoneDto> zoneMap = new HashMap<>();
+			AtomicInteger atomicInteger = new AtomicInteger();  // Initial value is 0
+			
+			ResponseMessage message = response.getBody();
+			List<Restaurant> restaurants = message.getResult();
+			List<RestaurantDto> restaurantList = restaurants.stream().filter(r -> {
+				boolean isValid = false;
+				if (StringUtils.isNotBlank(r.getRegionName()) && r.getProvince() != null && r.getDistrict() != null && r.getBrand() != null) {
+					isValid = true;
+				}
+				return isValid;
+			}).map(r -> {
+				
+				log.debug("RESTAURANT-CODE: " + r.getCode());
+				
+				RestaurantDto restaurantDto = new RestaurantDto();
+				restaurantDto.setCode(r.getCode());
+				restaurantDto.setName(r.getName());
+				restaurantDto.setAddress(r.getAddress());
+				restaurantDto.setPhone(r.getTelephone());
+				restaurantDto.setIp(r.getGposIp());
+				restaurantDto.setPort(r.getGposPort());
+				restaurantDto.setStatus(r.getIsActive());
+				restaurantDto.setLatitude(r.getLatitude());
+				restaurantDto.setLongitude(r.getLongitude());
+				restaurantDto.setEmail(r.getEmail());
+				
+				ZoneDto zone = null;
+				if (zoneMap.containsKey(r.getRegionName())) {
+					zone = zoneMap.get(r.getRegionName());
+				} else {
+					int zoneId = atomicInteger.incrementAndGet();
+					zone = new ZoneDto();
+					zone.setId(Long.valueOf(zoneId));
+					zone.setName(r.getRegionName());
+					zoneMap.put(r.getRegionName(), zone);
+					zones.add(zone);
+				}
+				
+				ProvinceDto province = new ProvinceDto();
+				province.setId(r.getProvince().getId());
+				province.setName(r.getProvince().getName());
+				province.setDisplayOrder(r.getProvince().getOrder());
+				province.setZone(zone);
+				try {
+					provinces.add(province);
+				} catch (Exception e) {
+					log.debug("Ignore duplicated province.");
+				}
+
+				DistrictDto district = new DistrictDto();
+				district.setId(r.getDistrict().getId());
+				district.setName(r.getDistrict().getName());
+				district.setDisplayOrder(r.getDistrict().getOrder());
+				district.setProvince(province);
+				try {
+					districts.add(district);
+				} catch (Exception e) {
+					log.debug("Ignore duplicated district.");
+				}
+
+				BrandDto brand = new BrandDto();
+				brand.setId(r.getBrand().getId());
+				brand.setName(r.getBrand().getName());
+				try {
+					brands.add(brand);
+				} catch (Exception e) {
+					log.debug("Ignore duplicated brand.");
+				}
+
+				ProvinceBrandDto provinceBrand = new ProvinceBrandDto();
+				provinceBrand.setProvince(province);
+				provinceBrand.setBrand(brand);
+				try {
+					provinceBrands.add(provinceBrand);
+				} catch (Exception e) {
+					log.debug("Ignore duplicated province brand.");
+				}
+
+				restaurantDto.setProvinceBrand(provinceBrand);
+
+				return restaurantDto;
+			}).collect(Collectors.toList());
+
+			map.put(MapKeyEnum.ZONE.key, new ArrayList<>(zones));
+			map.put(MapKeyEnum.PROVINCE.key, new ArrayList<>(provinces));
+			map.put(MapKeyEnum.DISTRICT.key, new ArrayList<>(districts));
+			map.put(MapKeyEnum.BRAND.key, new ArrayList<>(brands));
+			map.put(MapKeyEnum.RES.key, restaurantList);
+			map.put(MapKeyEnum.PROVINCE_BRAND.key, new ArrayList<>(provinceBrands));
+		} else {
+			throw new IntegrationException(response.getStatusCode().toString(), "Bad Integration");
+		}
+
+		return map;
+	}
+
+	public SyncResponse sendMasterDataToRestaurant(final MasterDataSync masterDataSync, final String type, final String url, final String resCodes) {
+		log.info("Entering sendMasterDataToRestaurant() method... ");
+
+		SyncResponse syncResponse = null;
+		try {
+			ObjectMapper mapper = new ObjectMapper();
+			String jsonData = "{}";
+			if (SystemParamEnum.API_MASTER_CATEGLIST_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataCategList.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_CATEGORY_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataOrderCategory.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_CURRENCY_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataCurrency.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_CURRENCYRATE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataCurrencyRate.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_EMPLOYEE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataEmployee.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_GUESTTYPE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataGuestType.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_HALLPLAN_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataHallPlan.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MENUITEM_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataMenuItem.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MODIFIER_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataModifier.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MODIGROUPS_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataModiGroups.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MODISCHEME_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataModiScheme.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MODISCHEMEDETAIL_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataModiSchemeDetail.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_ORDERTYPE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataOrderType.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_ORDERVOID_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataOrderVoid.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_RESTAURANT_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataRestaurant.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_TABLE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataTable.class).writeValueAsString(masterDataSync);
+			} else {}
+			
+			ResponseEntity<SyncResponse> response = sendData(url, jsonData, resCodes);
+			syncResponse = response.getBody();
+			
+			log.debug("====> Code: " + syncResponse.getCode() + ", Message: " + syncResponse.getMess());
+			
+		} catch (Exception e) {
+			syncResponse = new SyncResponse();
+			syncResponse.setCode(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()));
+			syncResponse.setMess(e.getMessage());
+			
+			log.error(ERROR, e);
+		}
+		
+		return syncResponse;
+	}
+	
+	
+	public String prepareMasterDataToString(final MasterDataSync masterDataSync, final String type) {
+		log.info("Entering prepareMasterDataToString() method... ");
+		String jsonData = "{}";
+		try {
+			ObjectMapper mapper = new ObjectMapper();
+			if (SystemParamEnum.API_MASTER_CATEGLIST_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataCategList.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_CATEGORY_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataOrderCategory.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_CURRENCY_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataCurrency.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_CURRENCYRATE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataCurrencyRate.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_EMPLOYEE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataEmployee.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_GUESTTYPE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataGuestType.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_HALLPLAN_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataHallPlan.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MENUITEM_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataMenuItem.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MODIFIER_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataModifier.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MODIGROUPS_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataModiGroups.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MODISCHEME_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataModiScheme.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_MODISCHEMEDETAIL_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataModiSchemeDetail.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_ORDERTYPE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataOrderType.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_ORDERVOID_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataOrderVoid.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_RESTAURANT_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataRestaurant.class).writeValueAsString(masterDataSync);
+			} else if (SystemParamEnum.API_MASTER_TABLE_PATTERN.param.equals(type)) {
+				jsonData = mapper.writerWithView(Views.MasterDataTable.class).writeValueAsString(masterDataSync);
+			} else {}
+			
+			
+		} catch (Exception e) {
+			log.error(ERROR, e);
+		}
+		
+		return jsonData;
+	}
+	
+	/***************
+	 *** End sync master data
+	**************/
+	
+	/***************
+	 *** Sync business data to restaurant
+	**************/
+	public String sendBusinessDataToRestaurant(final RestaurantSync restaurantSync, final String gatewayUrl, final Map<String, String> urls,boolean checkDeleteAll) {
+		log.info("Entering sendBusinessDataToRestaurant() method... ");
+		
+		String apiMenuEngineeringUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_MENUENGINEERING_PATTERN.param);
+		String apiMenuGroupUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_MENUGROUP_PATTERN.param);
+		String apiCoCategoryUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_COCATEGORY_PATTERN.param);
+		String apiCoMenuItemUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_COMENUITEM_PATTERN.param);
+		String apiCoModifierUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_COMODIFIER_PATTER.param);
+		String apiSpecialUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_COSPECIALTYPE_PATTERN.param);
+		String apiPrintGroupUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_PRINTGROUP_PATTERN.param);
+		String apiPlaceUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_PLACE_PATTERN.param);
+		String apiHallplanUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_HALLPLAN_PATTERN.param);
+		String apiParamUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_APPPARAM_PATTERN.param);
+		String apiKaloGroupUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_KALO_GROUP_PATTERN.param);
+		
+		String apiDeleteCoMenuItemUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_DELETE_COMENUITEM_PATTERN.param);
+		String apiDeleteCoCategoryUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_DELETE_COCATEGORY_PATTERN.param);
+		String apiDeleteMenuengineeringUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_DELETE_MENUENGINEERING_PATTERN.param);
+		
+		String resCodes = restaurantSync.getResCodes();
+		
+		ObjectMapper mapper = new ObjectMapper();
+		StringBuilder builder = new StringBuilder();
+		List<String> errors = new ArrayList<>();
+		
+		// send data of menu engineering
+		if(errors.isEmpty() && restaurantSync.getMenuEngineerings() != null && !restaurantSync.getMenuEngineerings().isEmpty()) {
+			List<ConfigMenuEngineering> menuEngineerings = restaurantSync.getMenuEngineerings();
+			menuEngineerings.stream().forEach(me -> {
+				try {
+					String jsonData = mapper.writerWithView(Views.OrderCategory.class).writeValueAsString(me);
+					ResponseEntity<SyncResponse> response = sendData(apiMenuEngineeringUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+					log.error(ERROR, e.getMessage());
+				}
+			});
+		}
+		// send data of menu group
+		if(errors.isEmpty() && restaurantSync.getMenuGroups() != null && !restaurantSync.getMenuGroups().isEmpty()) {
+			List<JsonMenuGroupDetail> menuGroups = restaurantSync.getMenuGroups();
+			menuGroups.stream().forEach(mg -> {
+				try {
+					String jsonData = mapper.writerWithView(Views.MenuGroup.class).writeValueAsString(mg);
+					ResponseEntity<SyncResponse> response = sendData(apiMenuGroupUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+					log.error(ERROR, e.getMessage());
+				}
+			});
+		}
+		
+		// send data of co category
+		if(errors.isEmpty() && restaurantSync.getCoCategories() != null && !restaurantSync.getCoCategories().isEmpty()) {
+			List<ConfigCOCategory> coCategories = restaurantSync.getCoCategories();
+			coCategories.stream().forEach(cc -> {
+				try {
+					String jsonData = mapper.writeValueAsString(cc);
+					ResponseEntity<SyncResponse> response = sendData(apiCoCategoryUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+					log.error(ERROR, e.getMessage());
+				}
+			});
+		}
+		
+		
+		// send data of co menu item
+		if(errors.isEmpty() && restaurantSync.getCoMenuItems() != null && !restaurantSync.getCoMenuItems().isEmpty()) {
+			List<ConfigCOMenuItem> coMenuItems = restaurantSync.getCoMenuItems();
+			coMenuItems.stream().forEach(cmi -> {
+				try {
+					String jsonData = mapper.writeValueAsString(cmi);
+					ResponseEntity<SyncResponse> response = sendData(apiCoMenuItemUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+					log.error(ERROR, e.getMessage());
+				}
+			});
+		}
+		
+		
+		// send data of co modifier
+		if(errors.isEmpty() && restaurantSync.getCoModifiers() != null && !restaurantSync.getCoModifiers().isEmpty()) {
+			List<ConfigCOModifier> coModifiers = restaurantSync.getCoModifiers();
+			coModifiers.stream().forEach(cm -> {
+				try {
+					String jsonData = mapper.writeValueAsString(cm);
+					ResponseEntity<SyncResponse> response = sendData(apiCoModifierUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+					log.error(ERROR, e.getMessage());
+				}
+			});
+		}
+		
+		
+		// send data of co special
+		if(errors.isEmpty() && restaurantSync.getCoSpecials() != null && !restaurantSync.getCoSpecials().isEmpty()) {
+			List<ConfigCOSpecialType> coSpecials = restaurantSync.getCoSpecials();
+			coSpecials.stream().forEach(cs -> {
+				try {
+					String jsonData = mapper.writeValueAsString(cs);
+					ResponseEntity<SyncResponse> response = sendData(apiSpecialUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					log.error(ERROR, e.getMessage());
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+					errors.add(ERROR);
+				}
+			});
+		}
+		
+		// send data of print group
+		if(errors.isEmpty() && restaurantSync.getPrintGroups() != null && !restaurantSync.getPrintGroups().isEmpty()) {
+			List<ConfigPrintGroup> printGroups = restaurantSync.getPrintGroups();
+			printGroups.stream().forEach(pg -> {
+				try {
+					String jsonData = mapper.writeValueAsString(pg);
+					ResponseEntity<SyncResponse> response = sendData(apiPrintGroupUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					log.error(ERROR, e.getMessage());
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+				}
+			});
+		}
+		
+		
+		// send data of places
+		if(errors.isEmpty() && restaurantSync.getPlaces() != null && !restaurantSync.getPlaces().isEmpty()) {
+			List<ConfigPlace> places = restaurantSync.getPlaces();
+			places.stream().forEach(p -> {
+				try {
+					String jsonData = mapper.writeValueAsString(p);
+					ResponseEntity<SyncResponse> response = sendData(apiPlaceUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					log.error(ERROR, e.getMessage());
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+				}
+			});
+		}
+		
+		// send data of hallplans
+		if(errors.isEmpty() && restaurantSync.getHallplans() != null && !restaurantSync.getHallplans().isEmpty()) {
+			List<ConfigHallplan> hallplans = restaurantSync.getHallplans();
+			hallplans.stream().forEach(h -> {
+				try {
+					String jsonData = mapper.writeValueAsString(h);
+					ResponseEntity<SyncResponse> response = sendData(apiHallplanUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					log.error(ERROR, e.getMessage());
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+				}
+			});
+		}
+		
+		// send api delete coFoodItem
+		if(errors.isEmpty() && restaurantSync.getDeleteCOMenuItems() != null && !restaurantSync.getDeleteCOMenuItems().isEmpty()) {
+			List<JsonDeleteCOMenuItem> jsDeleteCo = restaurantSync.getDeleteCOMenuItems();
+			jsDeleteCo.stream().forEach(pr -> {
+				try {
+					String jsonData = mapper.writeValueAsString(pr);
+					ResponseEntity<SyncResponse> response = sendData(apiDeleteCoMenuItemUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					log.error(ERROR, e.getMessage());
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+				}
+			});
+		}
+		
+		
+		// send data of app param
+		if(errors.isEmpty() && restaurantSync.getParams() != null && !restaurantSync.getParams().isEmpty()) {
+			List<ConfigParam> params = restaurantSync.getParams();
+			params.stream().forEach(pr -> {
+				try {
+					String jsonData = mapper.writeValueAsString(pr);
+					ResponseEntity<SyncResponse> response = sendData(apiParamUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+					log.error(ERROR, e.getMessage());
+				}
+			});
+		}
+		// send api delete co category
+		if(errors.isEmpty() && restaurantSync.getDeleteCoCategories() != null && !restaurantSync.getDeleteCoCategories().isEmpty()) {
+			List<JsonDeleteCoCategory> jsonDeleteCoCategories = restaurantSync.getDeleteCoCategories();
+			jsonDeleteCoCategories.stream().forEach(pr -> {
+				try {
+					String jsonData = mapper.writeValueAsString(pr);
+					ResponseEntity<SyncResponse> response = sendData(apiDeleteCoCategoryUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					log.error(ERROR, e.getMessage());
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+				}
+			});
+		}
+		
+		// send api delete socategory
+		if(errors.isEmpty() && restaurantSync.getDeleteSoCategoryItems() != null && !restaurantSync.getDeleteSoCategoryItems().isEmpty()) {
+			List<ConfigMenuEngineering> deleteMenuEngineerings = restaurantSync.getDeleteSoCategoryItems();
+			deleteMenuEngineerings.stream().forEach(pr -> {
+				try {
+					String jsonData = mapper.writeValueAsString(pr);
+					ResponseEntity<SyncResponse> response = sendData(apiDeleteMenuengineeringUrl, jsonData, resCodes);
+					SyncResponse syncResponse = response.getBody();
+					if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+						builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+						errors.add(ERROR);
+					}
+				} catch (JsonProcessingException | SystemException e) {
+					errors.add(ERROR);
+					log.error(ERROR, e.getMessage());
+					builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+				}
+			});
+		}
+		
+		// send data of kaloGroup
+		if(errors.isEmpty() && restaurantSync.getJsonKaloGroup() != null) {
+			JsonKaloGroup jsonKaloGroup = restaurantSync.getJsonKaloGroup();
+			try {
+				String jsonData = mapper.writeValueAsString(jsonKaloGroup);
+				ResponseEntity<SyncResponse> response = sendData(apiKaloGroupUrl, jsonData, resCodes);
+				SyncResponse syncResponse = response.getBody();
+				if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+					builder.append(syncResponse.getMess()).append(SymbolEnum.DOT.val);
+					errors.add(ERROR);
+				}
+			} catch (JsonProcessingException | SystemException e) {
+				errors.add(ERROR);
+				builder.append(e.getMessage()).append(SymbolEnum.DOT.val);
+				log.error(ERROR, e.getMessage());
+			}
+		}
+		
+		return builder.toString();
+	}
+	
+	private ResponseEntity<SyncResponse> sendData(final String url, final String jsonData, final String resCodes) throws SystemException {
+		log.info("Entering sendData() method...");
+		log.debug("=> URL: " + url);
+		log.debug("=> JSON-DATA: " + jsonData);
+		
+		try {
+		    RestTemplate restTemplate = new RestTemplate();
+			
+			// create headers
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8));
+			headers.setAccept(Collections.singletonList(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)));
+			if (StringUtils.isNotBlank(resCodes)) {
+				headers.add(HeaderEnum.KEY_RES_CODE.getKey(), resCodes);
+			}
+			HttpEntity<?> requestEntity = new HttpEntity<>(new ObjectMapper().readTree(jsonData), headers);
+		
+			return restTemplate.exchange(url, HttpMethod.POST, requestEntity, SyncResponse.class);
+			
+		} catch(Exception e) {
+			e.printStackTrace();
+			throw new SystemException(e.getMessage(), e);
+		}
+	}
+	 
+	public List<String> getPrinters(final String url, final Integer resCode) {
+		List<String> printers = null;
+		try {
+		    RestTemplate restTemplate = new RestTemplate();
+			
+			// create headers
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8));
+			headers.setAccept(Collections.singletonList(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)));
+			headers.add(HeaderEnum.KEY_RES_CODE.getKey(), resCode.toString());
+			HttpEntity<?> requestEntity = new HttpEntity<>(headers);
+		
+			ResponseEntity<ConfigPrinter> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, ConfigPrinter.class);
+			ConfigPrinter configPrinter = response.getBody();
+			if (HttpStatusEnum.STATUS_200.code.equals(configPrinter.getCode())) {
+				printers = configPrinter.getData();
+			}
+			
+		} catch(Exception e) {
+			log.error(e.toString());
+		}
+		
+		return printers;
+	}
+
+	
+	public boolean check(final String url,final Integer resCode) throws JsonProcessingException {
+		boolean check = true;
+		try {
+			CheckStatusResponse syncResponse = checkOnline(url, resCode.toString());
+			if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+				check = false;
+			}
+		} catch (Exception e) {
+			log.error(ERROR, e);
+			check = false;
+		}
+		return check;
+	}
+	
+	public RestaurantDto check(final String url,final Integer resCode,RestaurantDto restaurant) throws JsonProcessingException {
+		log.info("Entering check online restaurant() method...");
+		try {
+			CheckStatusResponse syncResponse = checkOnline(url, resCode.toString());
+			if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+				restaurant.setOnline(StatusEnum.INACTIVE.status);
+				restaurant.setVersion(null);
+			} else {
+				restaurant.setOnline(StatusEnum.ACTIVE.status);
+				if(syncResponse.getData() != null && !syncResponse.getData().isEmpty()) {
+					restaurant.setVersion(syncResponse.getData());
+				}
+			}
+		} catch (Exception e) {
+			restaurant.setOnline(StatusEnum.INACTIVE.status);
+			log.error(ERROR, e);
+		}
+		return restaurant;
+	}
+	
+	private CheckStatusResponse checkOnline(final String url,final String resCode) {
+		log.debug("=> URL: " + url);
+		log.debug("=> resCode: " + resCode);
+		try {
+		    RestTemplate restTemplate = new RestTemplate(getClientHttpRequestFactory());
+			// create headers
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8));
+			headers.setAccept(Collections.singletonList(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)));
+			if (StringUtils.isNotBlank(resCode)) {
+				headers.add(HeaderEnum.KEY_RES_CODE.getKey(), resCode);
+			}
+			HttpEntity<?> requestEntity = new HttpEntity<>(headers);
+		
+			return restTemplate.exchange(url, HttpMethod.GET, requestEntity, CheckStatusResponse.class).getBody();
+		} catch(Exception e) {
+			log.error("ERROR: Restaurant offline");
+			CheckStatusResponse checkStatusResponse = new CheckStatusResponse();
+			checkStatusResponse.setCode(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()));
+			return checkStatusResponse;
+		}
+	}
+	
+	private SimpleClientHttpRequestFactory getClientHttpRequestFactory() {
+	    SimpleClientHttpRequestFactory clientHttpRequestFactory
+	                      = new SimpleClientHttpRequestFactory();
+	    //Connect timeout
+	    clientHttpRequestFactory.setConnectTimeout(3_000);
+	     
+	    //Read timeout
+	    clientHttpRequestFactory.setReadTimeout(3_000);
+	    return clientHttpRequestFactory;
+	}
+	
+}

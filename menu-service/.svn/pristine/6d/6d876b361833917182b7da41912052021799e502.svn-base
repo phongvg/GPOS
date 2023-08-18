@@ -1,0 +1,16 @@
+package com.gg.gpos.menu.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import com.gg.gpos.menu.entity.Employee;
+
+@Repository
+public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
+	@Query("from Employee e where e.status=3")
+	List<Employee> findActives();
+}

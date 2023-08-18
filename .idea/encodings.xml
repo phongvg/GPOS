@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding" native2AsciiForPropertiesFiles="true" defaultCharsetForPropertiesFiles="UTF-8">
+    <file url="file://$PROJECT_DIR$/common-utils/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-utils/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gadmin/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gadmin/src/main/resources/messages.properties" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/integration-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/integration-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/menu-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/reference-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/restaurant-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/speed-data-jpa-audit/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/speed-data-jpa-audit/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/speed-security-jwt/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/speed-security-jwt/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/user-service/src/main/java" charset="UTF-8" />
+  </component>
+</project>

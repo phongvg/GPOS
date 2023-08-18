@@ -1,0 +1,12 @@
+package com.gg.gpos.menu.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.stereotype.Repository;
+import com.gg.gpos.menu.entity.ConfigQrOrder;
+
+@Repository
+public interface ConfigQrOrderRepository extends JpaRepository<ConfigQrOrder, Long>, JpaSpecificationExecutor<ConfigQrOrder> {
+	ConfigQrOrder findByCoIdAndRestaurantCodeIsNull(Long coId);
+	ConfigQrOrder findByRestaurantCode(String restaurantCode);
+}

@@ -1,0 +1,92 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+
+import com.gg.gpos.menu.dto.KitchenTypeDto;
+import com.gg.gpos.menu.entity.Kitchen;
+import com.gg.gpos.menu.entity.KitchenType;
+import com.gg.gpos.menu.mapper.KitchenTypeMapper;
+import com.gg.gpos.menu.repository.KitchenRepository;
+import com.gg.gpos.menu.repository.KitchenTypeRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class KitchenTypeManager {
+	@Autowired 
+	private KitchenTypeRepository kitchenTypeRepository;
+	@Autowired
+	private KitchenTypeMapper kitchenTypeMapper;
+	@Autowired
+	private KitchenRepository kitchenRepository;
+	
+	public List<KitchenTypeDto> gets() {
+		log.debug("Entering 'gets' method...");
+		return kitchenTypeRepository.findAll().stream().map(kitchenTypeMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public List<KitchenTypeDto> gets(Integer resCode) {
+		log.debug("Entering 'gets by resCode' method...");
+		return kitchenTypeRepository.findByRestaurantCode(resCode).stream().map(kitchenTypeMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public List<KitchenTypeDto> gets(Integer resCode,List<String> names) {
+		log.debug("Entering 'gets by resCode and name in' method...");
+		return kitchenTypeRepository.findByRestaurantCodeAndNameIn(resCode, names).stream().map(kitchenTypeMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public KitchenTypeDto get(Long id) {
+		log.debug("Entering 'get' method...");
+		return kitchenTypeRepository.findById(id).map(kitchenTypeMapper::entityToDto).orElse(null);
+	}
+	
+	public Page<KitchenTypeDto> gets(KitchenTypeDto criteria){
+		log.debug("Entering 'gets(criteria)' method...");
+		Page<KitchenType> page = kitchenTypeRepository.findByRestaurantCode(criteria.getRestaurantCode(), PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(kitchenTypeMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+	
+	public KitchenTypeDto save(KitchenTypeDto kitchenTypeDto) {
+		log.debug("Entering 'save' method...");
+		KitchenType kitchenType = Optional.ofNullable(kitchenTypeDto).map(kitchenTypeMapper::dtoToEntity).orElse(null);
+		return Optional.ofNullable(kitchenTypeRepository.save(kitchenType)).map(kitchenTypeMapper::entityToDto).orElse(null);
+	}
+	
+	public List<KitchenTypeDto> getByResCode(Integer resCode) {
+		log.debug("Entering 'getKitchenTypeByResCode' method...");
+		List<Kitchen> kitchens = kitchenRepository.findByRestaurantCode(resCode);
+		List<String> names =  kitchens.stream().map(k -> k.getKitchenType()).collect(Collectors.toList());
+		return kitchenTypeRepository.findByRestaurantCodeAndNameIn(resCode, names).stream().map(kitchenTypeMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public List<String> getNameByResCode(Integer resCode) {
+		log.debug("Entering 'getKitchenTypeByResCode' method...");
+		List<Kitchen> kitchens = kitchenRepository.findByRestaurantCode(resCode);
+		List<String> names =  kitchens.stream().map(k -> k.getKitchenType()).collect(Collectors.toList());
+		return kitchenTypeRepository.findByRestaurantCodeAndNameIn(resCode, names).stream().map(item -> item.getName()).collect(Collectors.toList());
+	}
+	
+	/*public List<String> getNameByRCode(Integer resCode) {
+		log.debug("Entering 'getNameByRCode' method...");
+		return kitchenTypeRepository.findByRestaurantCode(resCode).stream().map(item -> item.getName()).collect(Collectors.toList());
+	}*/
+	
+	public void delete(KitchenTypeDto kitchenTypeDto) {
+		KitchenType kitchenType = Optional.ofNullable(kitchenTypeDto).map(kitchenTypeMapper::dtoToEntity).orElse(null);
+		if(kitchenType != null) {
+			kitchenTypeRepository.delete(kitchenType);
+		}
+	}
+}

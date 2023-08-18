@@ -1,0 +1,26 @@
+package com.gg.gpos.common.constant;
+
+public enum TableNameEnum {
+	FOOD_ITEM("FOOD_ITEM"),
+	CATEGORY("CATEGORY"),
+	ORDER_TYPE("ORDER_TYPE"),
+	ORDER_CATEGORY("ORDER_CATEGORY"),
+	MODIFIER("MODIFIER"),
+	MODI_GROUP("MODI_GROUP"),
+	MODI_SCHEME("MODI_SCHEME"),
+	MODI_SCHEME_DETAIL("MODI_SCHEME_DETAIL"),
+	ORDER_VOID("ORDER_VOID"),
+	CURRENCY("CURRENCY"),
+	CURRENCY_RATE("CURRENCY_RATE"),
+	HALL_PLAN("HALL_PLAN"),
+	EMPLOYEE("EMPLOYEE"),
+	RESTAURANT("RESTAURANT"),
+	GUEST_TYPE("GUEST_TYPE"),
+	TABLE_KITCHEN("TABLE_KITCHEN");
+	
+	public String tableName;
+	
+	private TableNameEnum(String tableName) {
+		this.tableName = tableName;
+	}
+}

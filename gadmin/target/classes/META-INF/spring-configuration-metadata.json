@@ -1,0 +1,55 @@
+{
+  "groups": [
+    {
+      "name": "app",
+      "type": "com.gg.gpos.config.AppProperties",
+      "sourceType": "com.gg.gpos.config.AppProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "app.application-url",
+      "type": "java.lang.String",
+      "sourceType": "com.gg.gpos.config.AppProperties"
+    },
+    {
+      "name": "app.attachment-context-path",
+      "type": "java.lang.String",
+      "sourceType": "com.gg.gpos.config.AppProperties"
+    },
+    {
+      "name": "app.attachment-path",
+      "type": "java.lang.String",
+      "sourceType": "com.gg.gpos.config.AppProperties"
+    },
+    {
+      "name": "app.default-page",
+      "type": "java.lang.Integer",
+      "sourceType": "com.gg.gpos.config.AppProperties",
+      "defaultValue": 0
+    },
+    {
+      "name": "app.default-page-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.gg.gpos.config.AppProperties",
+      "defaultValue": 0
+    },
+    {
+      "name": "app.rest-path",
+      "type": "java.lang.String",
+      "sourceType": "com.gg.gpos.config.AppProperties"
+    },
+    {
+      "name": "app.send-email-enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.gg.gpos.config.AppProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "app.time-difference",
+      "type": "java.lang.Long",
+      "sourceType": "com.gg.gpos.config.AppProperties"
+    }
+  ],
+  "hints": []
+}

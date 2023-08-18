@@ -1,0 +1,34 @@
+package com.gg.gpos.controller;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.boot.web.servlet.error.ErrorController;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.servlet.ModelAndView;
+
+@Controller
+public class WebErrorController implements ErrorController {
+
+    @GetMapping(value = "/error")
+    public ModelAndView handleError(HttpServletRequest request) {
+        
+    	
+    	ModelAndView modelAndView = new ModelAndView("error");
+        Integer status = (Integer)request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
+        String msg = (String)request.getAttribute(RequestDispatcher.ERROR_MESSAGE);
+        if (status != null) {
+        	modelAndView.addObject("errorStatus", status);
+        	modelAndView.addObject("errorMsg", msg);
+        }
+        
+        return modelAndView;
+    }
+
+    @Override
+    public String getErrorPath() {
+        return "/error";
+    }
+
+}

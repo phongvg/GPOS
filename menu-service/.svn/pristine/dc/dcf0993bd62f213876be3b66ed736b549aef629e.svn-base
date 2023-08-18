@@ -1,0 +1,54 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import javax.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import com.gg.gpos.menu.dto.CoFoodItemDto;
+import com.gg.gpos.menu.dto.RelatedFoodItemDto;
+import com.gg.gpos.menu.entity.CoFoodItem;
+import com.gg.gpos.menu.entity.RelatedFoodItem;
+import com.gg.gpos.menu.mapper.CoFoodItemMapper;
+import com.gg.gpos.menu.mapper.RelatedFoodItemMapper;
+import com.gg.gpos.menu.repository.RelatedFoodItemRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class RelatedFoodItemManager {
+	@Autowired
+	private RelatedFoodItemRepository relatedFoodItemRepository;
+	@Autowired
+	private RelatedFoodItemMapper relatedFoodItemMapper;
+	@Autowired
+	private CoFoodItemMapper coFoodItemMapper;
+
+
+	public List<RelatedFoodItemDto> getByTypeAndCoFoodItemId(Long cId,String type){
+		log.debug("entering 'getByTypeAndCoFoodItemId' method...");
+		return relatedFoodItemRepository.findByTypeAndCoFoodItem_Id(type, cId).stream().map(relatedFoodItemMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public RelatedFoodItemDto save(RelatedFoodItemDto relatedFoodItemDto) {
+		log.debug("Entering 'save' method...");
+		CoFoodItem coFoodItem = Optional.ofNullable(relatedFoodItemDto.getCoFoodItem()).map(coFoodItemMapper::dtoToEntity).orElse(null);
+		RelatedFoodItem relatedFoodItem = Optional.ofNullable(relatedFoodItemDto).map(relatedFoodItemMapper::dtoToEntity).orElse(null);
+		if (relatedFoodItem != null) {
+			relatedFoodItem.setCoFoodItem(coFoodItem);
+			return Optional.ofNullable(relatedFoodItemRepository.save(relatedFoodItem)).map(relatedFoodItemMapper::entityToDto).orElse(null);
+		} else {
+			return null;
+		}
+	}
+	
+	public void deleteByCoFoodItem(CoFoodItemDto coFoodItemDto){
+		CoFoodItem coFoodItem = Optional.ofNullable(coFoodItemDto).map(coFoodItemMapper::dtoToEntity).orElse(null);
+		if(coFoodItem != null) {
+			relatedFoodItemRepository.deleteByCoFoodItem(coFoodItem);
+		}
+	}
+}

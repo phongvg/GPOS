@@ -1,0 +1,53 @@
+package com.gg.gpos.menu.dto;
+
+public class IKdsAccountDto {
+	private String userName;
+	private String password;
+	private String kdsPlaceCodes;
+	private String parent;
+	private Double role;
+	private String error;
+	private boolean status;
+	public Double getRole() {
+		return role;
+	}
+	public void setRole(Double role) {
+		this.role = role;
+	}
+	public String getUserName() {
+		return userName;
+	}
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+	public String getPassword() {
+		return password;
+	}
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	public String getKdsPlaceCodes() {
+		return kdsPlaceCodes;
+	}
+	public void setKdsPlaceCodes(String kdsPlaceCodes) {
+		this.kdsPlaceCodes = kdsPlaceCodes;
+	}
+	public String getParent() {
+		return parent;
+	}
+	public void setParent(String parent) {
+		this.parent = parent;
+	}
+	public String getError() {
+		return error;
+	}
+	public void setError(String error) {
+		this.error = error;
+	}
+	public boolean isStatus() {
+		return status;
+	}
+	public void setStatus(boolean status) {
+		this.status = status;
+	}
+}

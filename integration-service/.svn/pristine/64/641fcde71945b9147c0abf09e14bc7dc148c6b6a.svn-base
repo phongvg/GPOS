@@ -1,0 +1,83 @@
+package com.gg.gpos.integration.jms;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jms.core.JmsTemplate;
+import org.springframework.stereotype.Component;
+
+import com.gg.gpos.common.json.RestaurantMenuDataSync;
+import com.gg.gpos.integration.dto.QueueDto;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Component
+public class MessageSyncSender {
+	private static final String QUEUE_SYNC_GROUP_PARAM = "queue-sync-group-param";
+	private static final String QUEUE_SYNC_SO_MENU = "queue-sync-so-menu";
+	private static final String QUEUE_SYNC_CO_MENU = "queue-sync-co-menu";
+	private static final String QUEUE_SYNC_FILE_ATTACHMENT = "queue-sync-file-attachment";
+	private static final String QUEUE_SYNC_BUSINESS_DATA = "queue-sync-business-data";
+	private static final String QUEUE_SYNC_MASTER_DATA = "queue-sync-master-data";
+	private static final String QUEUE_SYNC_MENU_STATUS = "queue-sync-menu-status";
+	@Autowired
+	private JmsTemplate jmsTemplate;
+	
+	
+	/*
+     * QUEUE đồng bộ GROUP_PARAM từ DANH MỤC XUỐNG NHÀ HÀNG
+     */
+   	public void syncGroupParam(final QueueDto queueDto) {
+       	log.debug("SENDING MESSAGE QUEUE SYNC GROUP_PARAM: {}", queueDto);
+   		jmsTemplate.convertAndSend(QUEUE_SYNC_GROUP_PARAM, queueDto);
+    }
+   	
+   	/*
+     * QUEUE đồng bộ SO_MENU từ DANH MỤC XUỐNG NHÀ HÀNG
+     */
+   	public void syncSoMenu(final QueueDto queueDto) {
+       	log.debug("SENDING MESSAGE QUEUE SYNC SO_MENU: {}", queueDto);
+   		jmsTemplate.convertAndSend(QUEUE_SYNC_SO_MENU, queueDto);
+    }
+   	
+   	/*
+     * QUEUE đồng bộ CO_MENU từ DANH MỤC XUỐNG NHÀ HÀNG
+     */
+   	public void syncCoMenu(final QueueDto queueDto) {
+       	log.debug("SENDING MESSAGE QUEUE SYNC CO_MENU: {}", queueDto);
+   		jmsTemplate.convertAndSend(QUEUE_SYNC_CO_MENU, queueDto);
+    }
+   	
+   	/*
+     * QUEUE đồng bộ FILE_ATTACHMENT từ DANH MỤC XUỐNG NHÀ HÀNG
+     */
+   	public void syncFileAttachment(final QueueDto queueDto) {
+       	log.debug("SENDING MESSAGE QUEUE SYNC FILE_ATTACHMENT: {}", queueDto);
+   		jmsTemplate.convertAndSend(QUEUE_SYNC_FILE_ATTACHMENT, queueDto);
+    }
+   	
+   	/*
+     * QUEUE đồng bộ BUSINESS_DATA từ DANH MỤC XUỐNG NHÀ HÀNG
+     */
+   	public void syncBusinessData(final QueueDto queueDto) {
+       	log.debug("SENDING MESSAGE QUEUE SYNC BUSINESS_DATA: {}", queueDto);
+   		jmsTemplate.convertAndSend(QUEUE_SYNC_BUSINESS_DATA, queueDto);
+    }
+   	
+   	/*
+     * QUEUE đồng bộ MASTER_DATA MỤC XUỐNG SERVER NHÀ HÀNG
+     */
+   	public void syncMasterData(final QueueDto queueDto) {
+       	log.debug("SENDING MESSAGE QUEUE SYNC MASTER_DATA: {}", queueDto);
+   		jmsTemplate.convertAndSend(QUEUE_SYNC_MASTER_DATA, queueDto);
+    }
+   	
+   	/*
+     * QUEUE đồng bộ trạng thái của loại MENU
+     */
+   	public void syncMenuStatus(final List<RestaurantMenuDataSync> restaurantMenuDataSyncs) {
+       	log.debug("SENDING MESSAGE QUEUE SYNC MENU STATUS: RESTAURANT_MENU_DATA_SYNCS: {}", restaurantMenuDataSyncs);
+   		jmsTemplate.convertAndSend(QUEUE_SYNC_MENU_STATUS, restaurantMenuDataSyncs);
+    }
+}

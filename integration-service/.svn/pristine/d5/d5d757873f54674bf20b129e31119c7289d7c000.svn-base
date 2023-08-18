@@ -1,0 +1,838 @@
+package com.gg.gpos.integration.manager;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import com.gg.gpos.menu.dto.SyncResponseDto;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+
+import com.gg.gpos.common.constant.ReferenceDataEnum;
+import com.gg.gpos.common.constant.ResultEnum;
+import com.gg.gpos.common.constant.SyncStatusEnum;
+import com.gg.gpos.common.constant.TmpSyncTypeEnum;
+import com.gg.gpos.common.constant.TypeDataEnum;
+import com.gg.gpos.common.constant.TypeSyncEnum;
+import com.gg.gpos.integration.dto.SyncArchiveDto;
+import com.gg.gpos.integration.dto.SyncDto;
+import com.gg.gpos.integration.dto.TmpSyncDto;
+import com.gg.gpos.integration.entity.Sync;
+import com.gg.gpos.integration.entity.SyncArchive;
+import com.gg.gpos.integration.entity.TmpSync;
+import com.gg.gpos.integration.mapper.SyncArchiveMapper;
+import com.gg.gpos.integration.mapper.SyncMapper;
+import com.gg.gpos.integration.mapper.TmpSyncMapper;
+import com.gg.gpos.integration.repository.SyncArchiveRepository;
+import com.gg.gpos.integration.repository.SyncRepository;
+import com.gg.gpos.integration.repository.TmpSyncRepository;
+import com.gg.gpos.integration.specification.SyncSpecification;
+import com.gg.gpos.menu.dto.CatalogDataEditDto;
+import com.gg.gpos.res.dto.RestaurantDto;
+import com.gg.gpos.res.mapper.RestaurantMapper;
+import com.gg.gpos.res.repository.RestaurantRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class SyncManager {
+	@Autowired
+	private SyncRepository syncRepository;
+	@Autowired
+	private SyncMapper syncMapper;
+	@Autowired
+	private SyncArchiveRepository syncArchiveRepository;
+	@Autowired
+	private TmpSyncRepository tmpSyncRepository;
+	@Autowired
+	private TmpSyncMapper tmpSyncMapper;
+	@Autowired
+	private SyncArchiveMapper syncArchiveMapper;
+	@Autowired
+	private RestaurantRepository restaurantRepository;
+	@Autowired
+	private RestaurantMapper restaurantMapper;
+	@Autowired
+	private SyncSpecification syncSpecification;
+	
+	/*
+	 * Reset trạng thái của các bản ghi bị lỗi
+	 */
+	public void resetSyncHasStatusFail(SyncDto syncDto){
+		log.debug("PROCESS: RESET SYNC HAS STATUS FAIL, SYNC_DTO: {}", syncDto);
+		try {
+			List<Sync> syncs = new ArrayList<>();
+			// Đánh dấu cập nhật lại tất cả các bản ghi có trạng thái bị lỗi
+			if(syncDto.getCheckAllItem()) {
+				syncs = syncRepository.findByStatus(SyncStatusEnum.FAIL.val);
+			} else {
+				if(StringUtils.isNotBlank(syncDto.getSyncFailIds())) {
+					Set<String> keys = org.springframework.util.StringUtils.commaDelimitedListToSet(syncDto.getSyncFailIds());
+					List<Long> ids = keys.stream().map(item -> Long.parseLong(item)).collect(Collectors.toList());
+					syncs = syncRepository.findByIdIn(ids);
+				}
+			}
+			
+			if(!CollectionUtils.isEmpty(syncs)) {
+				syncs.stream().forEach(sync ->{
+					sync.setStatus(SyncStatusEnum.WAITING.val);
+					sync.setResult(ResultEnum.WAITING_RESULT.val);
+					syncRepository.save(sync);
+				});
+			}
+		} catch (Exception e) {
+			log.error("ERROR PROCESS: RESET SYNC HAS STATUS FAIL EXCEPTION: {}", e);
+		}
+	}
+
+	public void deleteSyncHasStatusFail(SyncDto syncDto){
+		log.debug("PROCESS: DELETE ALL SYNC HAS STATUS FAIL, SYNC_DTO: {}", syncDto);
+		try {
+			List<Sync> syncs = new ArrayList<>();
+			// Đánh dấu cập nhật lại tất cả các bản ghi có trạng thái bị lỗi
+			if(syncDto.getCheckAllItem()) {
+				syncs = syncRepository.findByStatus(SyncStatusEnum.FAIL.val);
+			} else {
+				if(StringUtils.isNotBlank(syncDto.getSyncFailIds())) {
+					Set<String> keys = org.springframework.util.StringUtils.commaDelimitedListToSet(syncDto.getSyncFailIds());
+					List<Long> ids = keys.stream().map(item -> Long.parseLong(item)).collect(Collectors.toList());
+					syncs = syncRepository.findByIdIn(ids);
+				}
+			}
+
+			if(!CollectionUtils.isEmpty(syncs)) {
+				syncs.stream().forEach(sync ->{
+					tmpSyncRepository.deleteBySync(sync);
+					syncRepository.delete(sync);
+				});
+			}
+		} catch (Exception e) {
+			log.error("ERROR PROCESS: DELETE ALL SYNC HAS STATUS FAIL EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ ẢNH xuống SERVER NHÀ HÀNG
+	 */
+	public void savedSyncFileToRestaurantServer(RestaurantDto restaurantDto, List<Long> coFoodItemIds, List<Long> coCategoryIds, List<Long> foodGroupIds) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC FILE TO SERVER RESTAURANT");
+		try {
+			Sync sync = new Sync();
+			sync.setRestaurantCode(restaurantDto.getCode());
+			sync.setRestaurantName(restaurantDto.getName());
+			sync.setCreatedDate(LocalDateTime.now());
+			sync.setStatus(SyncStatusEnum.WAITING.val);
+			sync.setResult(ResultEnum.WAITING_RESULT.val);
+			sync.setTypeData(TypeDataEnum.FILE_DATA.val);
+			sync.setTypeSync(TypeSyncEnum.SYNC_FILE_DATA_TO_SERVER_RESTAURANT.val);
+			sync.setCatalogId(null);
+			sync.setOverride(false);
+			Sync savedSync = syncRepository.save(sync);
+			if(!CollectionUtils.isEmpty(coFoodItemIds)) {
+				coFoodItemIds.stream().forEach(item ->{
+					TmpSyncDto tmpSyncDto = new TmpSyncDto();
+					tmpSyncDto.setCatalogId(item);
+					tmpSyncDto.setType(TmpSyncTypeEnum.CO_FOOD_ITEM.val);
+					tmpSyncDto.setRestaurantCode(restaurantDto.getCode());
+					tmpSyncDto.setValue(item.toString());
+					TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+					tmpSync.setSync(savedSync);
+					tmpSyncRepository.save(tmpSync);
+				});
+			}
+			if(!CollectionUtils.isEmpty(coCategoryIds)) {
+				coCategoryIds.stream().forEach(item ->{
+					TmpSyncDto tmpSyncDto = new TmpSyncDto();
+					tmpSyncDto.setCatalogId(item);
+					tmpSyncDto.setType(TmpSyncTypeEnum.CO_CATEGORY.val);
+					tmpSyncDto.setRestaurantCode(restaurantDto.getCode());
+					tmpSyncDto.setValue(item.toString());
+					TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+					tmpSync.setSync(savedSync);
+					tmpSyncRepository.save(tmpSync);
+				});
+			}
+			if(!CollectionUtils.isEmpty(foodGroupIds)) {
+				foodGroupIds.stream().forEach(item ->{
+					TmpSyncDto tmpSyncDto = new TmpSyncDto();
+					tmpSyncDto.setCatalogId(item);
+					tmpSyncDto.setType(TmpSyncTypeEnum.FOOD_GROUP.val);
+					tmpSyncDto.setRestaurantCode(restaurantDto.getCode());
+					tmpSyncDto.setValue(item.toString());
+					TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+					tmpSync.setSync(savedSync);
+					tmpSyncRepository.save(tmpSync);
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC FILE TO SERVER RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ ẢNH xuống SERVER NHÀ HÀNG
+	 */
+	public void savedSyncAllFileToRestaurantServer(List<RestaurantDto> restaurantDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC ALL_FILE TO SERVER RESTAURANT");
+		try {
+			String typeData = TypeDataEnum.FILE_DATA.val;
+			String typeSync = TypeSyncEnum.SYNC_FILE_DATA_TO_SERVER_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					// Thực hiện insert dữ liệu mới
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setCreatedDate(LocalDateTime.now());
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setTypeData(typeData);
+					sync.setTypeSync(typeSync);
+					sync.setCatalogId(null);
+					sync.setOverride(true);
+					syncRepository.save(sync);
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC ALL_FILE TO SERVER RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ dữ liệu xuống SERVER NHÀ HÀNG
+	 */
+	public void savedSyncDataToRestaurantServer(Boolean isOverride, List<RestaurantDto> restaurantDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC DATA TO RESTAURANT SERVER");
+		try {
+			String typeData = TypeDataEnum.BUSINESS_DATA.val;
+			String typeSync = TypeSyncEnum.SYNC_BUSINESS_DATA_TO_SERVER_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					// Thực hiện insert dữ liệu mới
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setCreatedDate(LocalDateTime.now());
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setTypeData(typeData);
+					sync.setTypeSync(typeSync);
+					sync.setCatalogId(null);
+					sync.setOverride(isOverride);
+					syncRepository.save(sync);
+				});
+			}
+			
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC DATA TO RESTAURANT SERVER EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ SO_MENU từ DANH MỤC xuống SERVER NHÀ HÀNG
+	 */
+	public void savedSyncSoMenuFromCatalogToRestaurantServer(Long soMenuId, Boolean isOverride, List<RestaurantDto> restaurantDtos, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC SO_MENU FORM CATALOG TO SERVER RESTAURANT");
+		try {
+			String typeData = TypeDataEnum.BUSINESS_SO_MENU_DATA.val;
+			String typeSync = TypeSyncEnum.SYNC_BUSINESS_DATA_FROM_CATALOG_TO_SERVER_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					// Thực hiện insert dữ liệu mới
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setCreatedDate(LocalDateTime.now());
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setTypeData(typeData);
+					sync.setTypeSync(typeSync);
+					sync.setCatalogId(soMenuId);
+					sync.setOverride(isOverride);
+					Sync savedSync = syncRepository.save(sync);
+					if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+						catalogDataEditDtos.stream().forEach(item -> {
+							TmpSyncDto tmpSyncDto = new TmpSyncDto();
+							BeanUtils.copyProperties(item, tmpSyncDto);
+							tmpSyncDto.setId(null);
+							TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+							if(tmpSync != null) {
+								tmpSync.setRestaurantCode(restaurantDto.getCode());
+								tmpSync.setSync(savedSync);
+								tmpSyncRepository.save(tmpSync);
+							}
+						});					
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC SO_MENU FORM CATALOG TO SERVER RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ CO_MENU từ DANH MỤC xuống SERVER NHÀ HÀNG
+	 */
+	public void savedSyncCoMenuFromCatalogToRestaurantServer(Long coMenuId, Boolean isOverride, List<RestaurantDto> restaurantDtos, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC CO_MENU FORM CATALOG TO SERVER RESTAURANT");
+		try {
+			String typeData = TypeDataEnum.BUSINESS_CO_MENU_DATA.val;
+			String typeSync = TypeSyncEnum.SYNC_BUSINESS_DATA_FROM_CATALOG_TO_SERVER_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					// Thực hiện insert dữ liệu mới
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setCreatedDate(LocalDateTime.now());
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setTypeData(typeData);
+					sync.setTypeSync(typeSync);
+					sync.setCatalogId(coMenuId);
+					sync.setOverride(isOverride);
+					Sync savedSync = syncRepository.save(sync);
+					if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+						catalogDataEditDtos.stream().forEach(item -> {
+							TmpSyncDto tmpSyncDto = new TmpSyncDto();
+							BeanUtils.copyProperties(item, tmpSyncDto);
+							tmpSyncDto.setId(null);
+							TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+							if(tmpSync != null) {
+								tmpSync.setRestaurantCode(restaurantDto.getCode());
+								tmpSync.setSync(savedSync);
+								tmpSyncRepository.save(tmpSync);
+							}
+						});					
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC CO_MENU FORM CATALOG TO SERVER RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ GROUP_PARAM từ DANH MỤC xuống SERVER NHÀ HÀNG
+	 */
+	public void savedSyncGroupParamMenuFromCatalogToRestaurantServer(Long groupParamMenuId, Boolean isOverride, List<RestaurantDto> restaurantDtos, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC GROUP_PARAM FORM CATALOG TO SERVER RESTAURANT");
+		try {
+			String typeData = TypeDataEnum.BUSINESS_PARAM_DATA.val;
+			String typeSync = TypeSyncEnum.SYNC_BUSINESS_DATA_FROM_CATALOG_TO_SERVER_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					// Thực hiện insert dữ liệu mới
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setCreatedDate(LocalDateTime.now());
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setTypeData(typeData);
+					sync.setTypeSync(typeSync);
+					sync.setCatalogId(groupParamMenuId);
+					sync.setOverride(isOverride);
+					Sync savedSync = syncRepository.save(sync);
+					if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+						catalogDataEditDtos.stream().forEach(item -> {
+							TmpSyncDto tmpSyncDto = new TmpSyncDto();
+							BeanUtils.copyProperties(item, tmpSyncDto);
+							tmpSyncDto.setId(null);
+							TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+							if(tmpSync != null) {
+								tmpSync.setRestaurantCode(restaurantDto.getCode());
+								tmpSync.setSync(savedSync);
+								tmpSyncRepository.save(tmpSync);
+							}
+						});					
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC GROUP_PARAM FORM CATALOG TO SERVER RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ SO_MENU (FORM NHÀ HÀNG)
+	 */
+	public void savedSyncSoMenuFromRestaurant(Long soMenuId, Boolean isOverride, RestaurantDto restaurantDto, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC SO_MENU FORM RESTAURANT");
+		try {
+			// Thực hiện insert dữ liệu mới
+			Sync sync = new Sync();
+			sync.setRestaurantCode(restaurantDto.getCode());
+			sync.setRestaurantName(restaurantDto.getName());
+			sync.setCreatedDate(LocalDateTime.now());
+			sync.setStatus(SyncStatusEnum.WAITING.val);
+			sync.setResult(ResultEnum.WAITING_RESULT.val);
+			sync.setTypeData(TypeDataEnum.BUSINESS_SO_MENU_DATA.val);
+			sync.setTypeSync(TypeSyncEnum.APPLY_CATALOG_FROM_RESTAURANT.val);
+			sync.setCatalogId(soMenuId);
+			sync.setOverride(isOverride);
+			Sync savedSync = syncRepository.save(sync);
+			if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+				catalogDataEditDtos.stream().forEach(item -> {
+					TmpSyncDto tmpSyncDto = new TmpSyncDto();
+					BeanUtils.copyProperties(item, tmpSyncDto);
+					tmpSyncDto.setId(null);
+					TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+					if(tmpSync != null) {
+						tmpSync.setRestaurantCode(restaurantDto.getCode());
+						tmpSync.setSync(savedSync);
+						tmpSyncRepository.save(tmpSync);
+					}
+				});					
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC SO_MENU FORM RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ SO_MENU từ DANH MỤC xuống NHÀ HÀNG
+	 */
+	public void savedSyncSoMenuFromCatalogToRestaurant(Long soMenuId, Boolean isOverride, List<RestaurantDto> restaurantDtos, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC SO_MENU FORM CATALOG TO RESTAURANT");
+		try {
+			String typeData = TypeDataEnum.BUSINESS_SO_MENU_DATA.val;
+			String typeSync = TypeSyncEnum.APPLY_FROM_CATALOG_TO_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					// Thực hiện insert dữ liệu mới
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setCreatedDate(LocalDateTime.now());
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setTypeData(typeData);
+					sync.setTypeSync(typeSync);
+					sync.setCatalogId(soMenuId);
+					sync.setOverride(isOverride);
+					Sync savedSync = syncRepository.save(sync);
+					if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+						catalogDataEditDtos.stream().forEach(item -> {
+							TmpSyncDto tmpSyncDto = new TmpSyncDto();
+							BeanUtils.copyProperties(item, tmpSyncDto);
+							tmpSyncDto.setId(null);
+							TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+							if(tmpSync != null) {
+								tmpSync.setRestaurantCode(restaurantDto.getCode());
+								tmpSync.setSync(savedSync);
+								tmpSyncRepository.save(tmpSync);
+							}
+						});					
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC SO_MENU FORM CATALOG TO RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ CO_MENU (FORM NHÀ HÀNG)
+	 */
+	public void savedSyncCoMenuFromRestaurant(Long coMenuId, Boolean isOverride, RestaurantDto restaurantDto, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC CO_MENU FORM RESTAURANT");
+		try {
+			// Thực hiện insert dữ liệu mới
+			Sync sync = new Sync();
+			sync.setRestaurantCode(restaurantDto.getCode());
+			sync.setRestaurantName(restaurantDto.getName());
+			sync.setCreatedDate(LocalDateTime.now());
+			sync.setStatus(SyncStatusEnum.WAITING.val);
+			sync.setResult(ResultEnum.WAITING_RESULT.val);
+			sync.setTypeData(TypeDataEnum.BUSINESS_CO_MENU_DATA.val);
+			sync.setTypeSync(TypeSyncEnum.APPLY_CATALOG_FROM_RESTAURANT.val);
+			sync.setCatalogId(coMenuId);
+			sync.setOverride(isOverride);
+			Sync savedSync = syncRepository.save(sync);
+			if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+				catalogDataEditDtos.stream().forEach(item -> {
+					TmpSyncDto tmpSyncDto = new TmpSyncDto();
+					BeanUtils.copyProperties(item, tmpSyncDto);
+					tmpSyncDto.setId(null);
+					TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+					if(tmpSync != null) {
+						tmpSync.setRestaurantCode(restaurantDto.getCode());
+						tmpSync.setSync(savedSync);
+						tmpSyncRepository.save(tmpSync);
+					}
+				});					
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC CO_MENU FORM RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ CO_MENU từ DANH MỤC xuống NHÀ HÀNG
+	 */
+	public void savedSyncCoMenuFromCatalogToRestaurant(Long coMenuId, Boolean isOverride, List<RestaurantDto> restaurantDtos, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC CO_MENU FORM CATALOG TO RESTAURANT");
+		try {
+			String typeData = TypeDataEnum.BUSINESS_CO_MENU_DATA.val;
+			String typeSync = TypeSyncEnum.APPLY_FROM_CATALOG_TO_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					// Thực hiện insert dữ liệu mới
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setCreatedDate(LocalDateTime.now());
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setTypeData(typeData);
+					sync.setTypeSync(typeSync);
+					sync.setCatalogId(coMenuId);
+					sync.setOverride(isOverride);
+					Sync savedSync = syncRepository.save(sync);
+					if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+						catalogDataEditDtos.stream().forEach(item -> {
+							TmpSyncDto tmpSyncDto = new TmpSyncDto();
+							BeanUtils.copyProperties(item, tmpSyncDto);
+							tmpSyncDto.setId(null);
+							TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+							if(tmpSync != null) {
+								tmpSync.setRestaurantCode(restaurantDto.getCode());
+								tmpSync.setSync(savedSync);
+								tmpSyncRepository.save(tmpSync);
+							}
+						});					
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC CO_MENU FORM CATALOG TO RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin nhà hàng cần áp dụng danh mục GROUP_PARAM (FORM NHÀ HÀNG)
+	 */
+	public void savedSyncGroupParamMenuFromRestaurant(Long groupParamMenuId, Boolean isOverride, RestaurantDto restaurantDto, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC GROUP_PARAM FORM RESTAURANT");
+		try {
+			Sync sync = new Sync();
+			sync.setRestaurantCode(restaurantDto.getCode());
+			sync.setRestaurantName(restaurantDto.getName());
+			sync.setCreatedDate(LocalDateTime.now());
+			sync.setStatus(SyncStatusEnum.WAITING.val);
+			sync.setResult(ResultEnum.WAITING_RESULT.val);
+			sync.setTypeData(TypeDataEnum.BUSINESS_PARAM_DATA.val);
+			sync.setTypeSync(TypeSyncEnum.APPLY_CATALOG_FROM_RESTAURANT.val);
+			sync.setCatalogId(groupParamMenuId);
+			sync.setOverride(isOverride);
+			Sync savedSync = syncRepository.save(sync);
+			if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+				catalogDataEditDtos.stream().forEach(item -> {
+					TmpSyncDto tmpSyncDto = new TmpSyncDto();
+					BeanUtils.copyProperties(item, tmpSyncDto);
+					tmpSyncDto.setId(null);
+					TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+					if(tmpSync != null) {
+						tmpSync.setRestaurantCode(restaurantDto.getCode());
+						tmpSync.setSync(savedSync);
+						tmpSyncRepository.save(tmpSync);
+					}
+				});					
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC GROUP_PARAM FORM RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Lưu thông tin các nhà hàng cần đồng bộ GROUP_PARAM từ DANH MỤC xuống NHÀ HÀNG
+	 */
+	public void savedSyncGroupParamMenuFromCatalogToRestaurant(Long groupParamMenuId, Boolean isOverride, List<RestaurantDto> restaurantDtos, List<CatalogDataEditDto> catalogDataEditDtos) {
+		log.debug("PROCESS FUNCTION: SAVE SYNC GROUP_PARAM FORM CATALOG TO RESTAURANT");
+		try {
+			String typeData = TypeDataEnum.BUSINESS_PARAM_DATA.val;
+			String typeSync = TypeSyncEnum.APPLY_FROM_CATALOG_TO_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					// Thực hiện insert dữ liệu mới
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setCreatedDate(LocalDateTime.now());
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setTypeData(typeData);
+					sync.setTypeSync(typeSync);
+					sync.setCatalogId(groupParamMenuId);
+					sync.setOverride(isOverride);
+					Sync savedSync = syncRepository.save(sync);
+					if(!CollectionUtils.isEmpty(catalogDataEditDtos)) {
+						catalogDataEditDtos.stream().forEach(item -> {
+							TmpSyncDto tmpSyncDto = new TmpSyncDto();
+							BeanUtils.copyProperties(item, tmpSyncDto);
+							tmpSyncDto.setId(null);
+							TmpSync tmpSync = Optional.of(tmpSyncDto).map(tmpSyncMapper::dtoToEntity).orElse(null);
+							if(tmpSync != null) {
+								tmpSync.setRestaurantCode(restaurantDto.getCode());
+								tmpSync.setSync(savedSync);
+								tmpSyncRepository.save(tmpSync);
+							}
+						});					
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE SYNC GROUP_PARAM FORM CATALOG TO RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Param: List<RestaurantDto> restaurantDtos - Integer referenceData
+	 * Lưu thông tin các nhà hàng cần đồng bộ MASTER_DATA
+	 */
+	public void savedSyncMasterData(List<RestaurantDto> restaurantDtos, Integer referenceData) {
+		log.debug("PROCESS FUNCTION: SAVED SYNC WITH TYPE MASTER_DATA");
+		try {
+			String typeData = TypeDataEnum.MASTER_DATA.val;
+			String typeSync = TypeSyncEnum.SYNC_MASTER_DATA_TO_SERVER_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setTypeSync(typeSync);
+					sync.setTypeData(typeData);
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setCatalogId(null);
+					sync.setOverride(true);
+					Sync savedSync = syncRepository.save(sync);
+					if(savedSync != null) {
+						TmpSync tmpSync = new TmpSync();
+						tmpSync.setRestaurantCode(restaurantDto.getCode());
+						tmpSync.setCatalogId(null);
+						tmpSync.setType(TmpSyncTypeEnum.MASTER_DATA.val);
+						tmpSync.setValue(referenceData.toString());
+						tmpSync.setSync(savedSync);
+						tmpSyncRepository.save(tmpSync);
+					}
+				});;
+			}
+		} catch (Exception e) {
+			log.error("ERROR PROCESS FUNCTION: SAVED SYNC WITH TYPE MASTER_DATA EXCEPTION {}", e);
+		}
+	}
+	
+	/*
+	 * Param: List<RestaurantDto> restaurantDtos - List<Integer> referenceDatas
+	 * Lưu thông tin các nhà hàng cần đồng bộ MASTER_DATA
+	 */
+	public void savedSyncMasterData(List<RestaurantDto> restaurantDtos, List<Integer> referenceDatas) {
+		log.debug("PROCESS FUNCTION: SAVED SYNC WITH TYPE MASTER_DATA");
+		try {
+			String typeData = TypeDataEnum.MASTER_DATA.val;
+			String typeSync = TypeSyncEnum.SYNC_MASTER_DATA_TO_SERVER_RESTAURANT.val;
+			String status = SyncStatusEnum.WAITING.val;
+			String result = ResultEnum.WAITING_RESULT.val;
+			
+			List<Integer> selectedReferenceDatas = new ArrayList<>();
+	    	// trường hợp có chọn các loại MasterData cần đẩy xuống
+			if(!CollectionUtils.isEmpty(referenceDatas)) {
+				selectedReferenceDatas.addAll(referenceDatas);
+			} else {
+				// trường hợp không tích chọn các loại MasterData cần đẩy xuống
+				Arrays.asList(ReferenceDataEnum.values()).forEach(item -> selectedReferenceDatas.add(item.key));
+			}
+			
+			if(!CollectionUtils.isEmpty(restaurantDtos)) {
+				restaurantDtos.stream().forEach(restaurantDto ->{
+					Sync sync = new Sync();
+					sync.setRestaurantCode(restaurantDto.getCode());
+					sync.setRestaurantName(restaurantDto.getName());
+					sync.setTypeSync(typeSync);
+					sync.setTypeData(typeData);
+					sync.setStatus(status);
+					sync.setResult(result);
+					sync.setCatalogId(null);
+					sync.setOverride(true);
+					Sync savedSync = syncRepository.save(sync);
+					if(!CollectionUtils.isEmpty(selectedReferenceDatas) && savedSync != null) {
+						selectedReferenceDatas.stream().forEach(item -> {
+							TmpSync tmpSync = new TmpSync();
+							tmpSync.setRestaurantCode(restaurantDto.getCode());
+							tmpSync.setCatalogId(null);
+							tmpSync.setType(TmpSyncTypeEnum.MASTER_DATA.val);
+							tmpSync.setValue(item.toString());
+							tmpSync.setSync(savedSync);
+							tmpSyncRepository.save(tmpSync);
+						});
+					}
+				});;
+			}
+		} catch (Exception e) {
+			log.error("ERROR PROCESS FUNCTION: SAVED SYNC WITH TYPE MASTER_DATA EXCEPTION {}", e);
+		}
+	}
+	
+	/*
+	 * Set lại trạng thái bảng SYNC sau khi đã đồng bộ xong
+	 */
+	public Boolean deleteSyncAndInsertSyncArchiveAfterSync(SyncDto syncDto, String result) {
+		log.debug("PROCESS FUNCTION: DELETE SYNC AND INSERT SYNC_ARCHIVE");
+		try {
+			SyncArchiveDto syncArchiveDto = new SyncArchiveDto();
+			BeanUtils.copyProperties(syncDto, syncArchiveDto);
+			syncArchiveDto.setId(null);
+			if(result != null) {
+				syncArchiveDto.setStatus(SyncStatusEnum.FAIL.val);
+				syncArchiveDto.setResult(result);
+				if(result.equals("ATTACHMENT DATA NULL")) {
+					// Xóa dữ liệu về bảng TMP_SYNC (Dữ liệu này lưu thông tin các bản ghi đã được chỉnh sửa)
+					Sync sync = Optional.of(syncDto).map(syncMapper::dtoToEntity).orElse(null);
+					tmpSyncRepository.deleteBySync(sync);
+					// Xóa thông tin dữ liệu về bản SYNC
+					syncRepository.delete(sync);
+				} else {
+					// Set lại trạng thái của bảng đồng bộ sync là đồng bộ bị lỗi
+					Sync sync = Optional.of(syncDto).map(syncMapper::dtoToEntity).orElse(null);
+					sync.setStatus(SyncStatusEnum.FAIL.val);
+					sync.setResult(result);
+					syncRepository.save(sync);
+				}
+			} else {
+				syncArchiveDto.setStatus(SyncStatusEnum.SUCCESS.val);
+				syncArchiveDto.setResult(SyncStatusEnum.SUCCESS.val);
+				
+				// Xóa dữ liệu về bảng TMP_SYNC (Dữ liệu này lưu thông tin các bản ghi đã được chỉnh sửa)
+				Sync sync = Optional.of(syncDto).map(syncMapper::dtoToEntity).orElse(null);
+				tmpSyncRepository.deleteBySync(sync);
+				// Xóa thông tin dữ liệu về bản SYNC
+				syncRepository.delete(sync);
+			}
+			syncArchiveDto.setSyncEndDate(LocalDateTime.now());
+			syncArchiveDto.setCreatedDate(LocalDateTime.now());
+			SyncArchive syncArchive = Optional.of(syncArchiveDto).map(syncArchiveMapper::dtoToEntity).orElse(null);
+			syncArchiveRepository.save(syncArchive);
+			return true;
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: DELETE SYNC AND INSERT SYNC_ARCHIVE");
+			return false;
+		}
+	}
+	
+	/*
+	 * Set lại trạng thái bảng SYNC sau khi đã đồng bộ xong
+	 */
+	public Boolean deleteSyncFileDataAndInsertSyncArchiveAfterSync(SyncDto syncDto, String result) {
+		log.debug("PROCESS FUNCTION: DELETE SYNC AND INSERT SYNC_ARCHIVE");
+		try {
+			SyncArchiveDto syncArchiveDto = new SyncArchiveDto();
+			BeanUtils.copyProperties(syncDto, syncArchiveDto);
+			syncArchiveDto.setId(null);
+			syncArchiveDto.setCreatedDate(LocalDateTime.now());
+			syncArchiveDto.setSyncEndDate(LocalDateTime.now());
+			syncArchiveDto.setStatus(SyncStatusEnum.SUCCESS.val);
+			syncArchiveDto.setResult(result);
+			
+			// Xóa dữ liệu về bảng TMP_SYNC (Dữ liệu này lưu thông tin các bản ghi đã được chỉnh sửa)
+			Sync sync = Optional.of(syncDto).map(syncMapper::dtoToEntity).orElse(null);
+			tmpSyncRepository.deleteBySync(sync);
+			// Xóa thông tin dữ liệu về bản SYNC
+			syncRepository.delete(sync);
+			SyncArchive syncArchive = Optional.of(syncArchiveDto).map(syncArchiveMapper::dtoToEntity).orElse(null);
+			syncArchiveRepository.save(syncArchive);
+
+			return true;
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: DELETE SYNC AND INSERT SYNC_ARCHIVE");
+			return false;
+		}
+	}
+	
+	public void updateSync(SyncDto syncDto, String result) {
+		log.debug("PROCESS: UPDATE SYNC, SYNC_DTO: {}, RESULT: {}", syncDto, result);
+		Sync sync = Optional.of(syncDto).map(syncMapper::dtoToEntity).orElse(null);
+		if(sync != null) {
+			sync.setStatus(SyncStatusEnum.INPROCESSING.val);
+			sync.setResult(result);
+			syncRepository.save(sync);
+		}
+	}
+
+	public void updateSync(SyncDto syncDto, String result, String status) {
+		log.debug("PROCESS: UPDATE SYNC, SYNC_DTO: {}, RESULT: {}", syncDto, result);
+		Sync sync = Optional.of(syncDto).map(syncMapper::dtoToEntity).orElse(null);
+		if(sync != null) {
+			sync.setStatus(status);
+			sync.setResult(result);
+			syncRepository.save(sync);
+		}
+	}
+	
+	public List<SyncDto> getTop5ByStatusAndTypeSyncNot(String status, String typeSync) {
+		return syncRepository.findTop5ByStatusAndTypeSyncNotOrderByIdAsc(status, typeSync).stream().map(syncMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public List<SyncDto> getTop5ByStatusAndTypeSync(String status, String typeSync) {
+		return syncRepository.findTop5ByStatusAndTypeSyncOrderByIdAsc(status, typeSync).stream().map(syncMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public Page<SyncDto> gets(SyncDto criteria){
+		log.debug("PROCESS: GETS SYNC, SYNC_DTO: {}", criteria);
+		Page<Sync> page = syncRepository.findAll(syncSpecification.filter(criteria), PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(syncMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+	
+	public void deleteById(Long id) {
+		log.debug("PROCESS: DELETE SYNC, SYNC_ID: {}", id);
+		try {
+			Optional<Sync> syncOptional = syncRepository.findById(id);
+			if(syncOptional.isPresent()) {
+				Sync sync = syncOptional.get();
+				tmpSyncRepository.deleteBySync(sync);
+				syncRepository.delete(sync);
+			}
+		} catch (Exception e) {
+			log.error("ERROR PROCESS: DELETE SYNC EXCEPTION: {}", e);
+		}
+	}
+
+	public SyncDto get(Long id) {
+		log.debug("PROCESS: GET SYNC_DTO BY ID, ID: {}", id);
+		return Optional.ofNullable(syncRepository.getOne(id)).map(syncMapper::entityToDto).orElse(null);
+	}
+}

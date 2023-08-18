@@ -1,0 +1,11 @@
+com/speedfrwk/security/jwt/model/UserSecurity.class
+com/speedfrwk/security/jwt/model/UserTokenState$UserTokenStateBuilder.class
+com/speedfrwk/security/jwt/helper/DateHelper.class
+com/speedfrwk/security/jwt/TokenBasedAuthentication.class
+com/speedfrwk/security/jwt/RestAuthenticationEntryPoint.class
+com/speedfrwk/security/jwt/model/UserTokenState.class
+com/speedfrwk/security/jwt/model/AuthenticationRequest.class
+com/speedfrwk/security/jwt/model/AuthenticationRequest$AuthenticationRequestBuilder.class
+com/speedfrwk/security/jwt/TokenAuthenticationFilter.class
+com/speedfrwk/security/jwt/JWTConfig.class
+com/speedfrwk/security/jwt/helper/TokenHelper.class

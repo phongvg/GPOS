@@ -1,0 +1,71 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.gg.gpos.menu.dto.CoFoodItemDto;
+import com.gg.gpos.menu.dto.ToppingFoodItemDto;
+import com.gg.gpos.menu.entity.CoFoodItem;
+import com.gg.gpos.menu.entity.ToppingFoodItem;
+import com.gg.gpos.menu.mapper.CoFoodItemMapper;
+import com.gg.gpos.menu.mapper.ToppingFoodItemMapper;
+import com.gg.gpos.menu.repository.CoFoodItemRepository;
+import com.gg.gpos.menu.repository.ToppingFoodItemRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class ToppingFoodItemManager {
+	
+	@Autowired
+	private ToppingFoodItemRepository toppingFoodItemRepository;
+	@Autowired
+	private CoFoodItemRepository coFoodItemRepository;
+	@Autowired
+	private ToppingFoodItemMapper toppingFoodItemMapper;
+	@Autowired
+	private CoFoodItemMapper coFoodItemMapper;
+	
+	public List<ToppingFoodItemDto> getToppingFoodItems(Long cfId) {
+		log.debug("Entering 'getToppingFoodItems("+cfId+")' method...");
+		List<ToppingFoodItemDto> toppingFoodItemDtos = new ArrayList<>();
+		if(cfId != null) {
+			CoFoodItem coFoodItem = coFoodItemRepository.getOne(cfId);
+			return toppingFoodItemRepository.findByCoFoodItem(coFoodItem).stream().map(toppingFoodItemMapper::entityToDto).collect(Collectors.toList());
+		} else {
+			return toppingFoodItemDtos;
+		}
+	}
+	
+	public List<ToppingFoodItemDto> getByCoFoodItem (CoFoodItemDto coFoodItemDto) {
+		CoFoodItem coFoodItem = Optional.ofNullable(coFoodItemDto).map(coFoodItemMapper::dtoToEntity).orElse(null);
+		if(coFoodItem != null) {
+			return toppingFoodItemRepository.findByCoFoodItem(coFoodItem).stream().map(toppingFoodItemMapper::entityToDto).collect(Collectors.toList());
+		} else {
+			return new ArrayList<>();
+		}
+	}
+	
+	public void deleteByCoFoodItem(CoFoodItemDto coFoodItemDto){
+		CoFoodItem coFoodItem = Optional.ofNullable(coFoodItemDto).map(coFoodItemMapper::dtoToEntity).orElse(null);
+		if(coFoodItem != null) {
+			toppingFoodItemRepository.deleteByCoFoodItem(coFoodItem);
+		}
+	}
+	
+	public void save(ToppingFoodItemDto toppingFoodItemDto) {
+		ToppingFoodItem toppingFoodItem = Optional.ofNullable(toppingFoodItemDto).map(toppingFoodItemMapper::dtoToEntity).orElse(null);
+		if(toppingFoodItem != null) {
+			toppingFoodItemRepository.save(toppingFoodItem);
+		}
+	}
+}

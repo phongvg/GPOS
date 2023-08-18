@@ -1,0 +1,47 @@
+package com.gg.gpos.menu.dto;
+
+public class IPrintGroupDto {
+	private String printGroupCode;
+	private String foodItemCode;
+	private String foodItemName;
+	private String kitchenType;
+	//status check import
+	private boolean status;
+	private String error;
+	public String getPrintGroupCode() {
+		return printGroupCode;
+	}
+	public void setPrintGroupCode(String printGroupCode) {
+		this.printGroupCode = printGroupCode;
+	}
+	public boolean isStatus() {
+		return status;
+	}
+	public void setStatus(boolean status) {
+		this.status = status;
+	}
+	public String getError() {
+		return error;
+	}
+	public void setError(String error) {
+		this.error = error;
+	}
+	public String getKitchenType() {
+		return kitchenType;
+	}
+	public void setKitchenType(String kitchenType) {
+		this.kitchenType = kitchenType;
+	}
+	public String getFoodItemCode() {
+		return foodItemCode;
+	}
+	public void setFoodItemCode(String foodItemCode) {
+		this.foodItemCode = foodItemCode;
+	}
+	public String getFoodItemName() {
+		return foodItemName;
+	}
+	public void setFoodItemName(String foodItemName) {
+		this.foodItemName = foodItemName;
+	}
+}

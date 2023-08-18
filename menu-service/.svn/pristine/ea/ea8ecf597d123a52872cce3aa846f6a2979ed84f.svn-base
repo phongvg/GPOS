@@ -1,0 +1,68 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+
+import com.gg.gpos.menu.dto.VersionDto;
+import com.gg.gpos.menu.entity.Version;
+import com.gg.gpos.menu.mapper.VersionMapper;
+import com.gg.gpos.menu.repository.VersionRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class VersionManager {
+	@Autowired
+	private VersionRepository versionRepository;
+	@Autowired
+	private VersionMapper versionMapper;
+	
+	public VersionDto getByTableName(String tableName) {
+		log.debug("PROCESS: GET BY TABLE NAME, TABLE_NAME: {}", tableName);
+		return Optional.ofNullable(versionRepository.findByTableName(tableName)).map(versionMapper::entityToDto).orElse(null);
+	}
+	
+	public VersionDto save(VersionDto versionDto) {
+		log.debug("PROCESS: SAVE, VERSION_DTO: {}", versionDto);
+		Version version = Optional.ofNullable(versionDto).map(versionMapper::dtoToEntity).orElse(null);
+		if (version != null) {
+			return Optional.ofNullable(versionRepository.save(version)).map(versionMapper::entityToDto).orElse(null);
+		} else {
+			return null;
+		}
+	}
+	
+	public void saves(Set<VersionDto> versionDtos) {
+		log.debug("PROCESS: SAVE, VERSION_DTOs: {}", versionDtos);
+		versionDtos.stream().forEach(versionDto ->{
+			Version version = Optional.ofNullable(versionDto).map(versionMapper::dtoToEntity).orElse(null);
+			if (version != null) {
+				versionRepository.save(version);
+			}
+		});
+	}
+	
+	public void saves(List<VersionDto> versionDtos) {
+		log.debug("PROCESS FUCNTION: SAVES VERSION_DTO, VERSION_DTOS: {}", versionDtos);
+		try {
+			if(!CollectionUtils.isEmpty(versionDtos))
+				versionDtos.stream().forEach(versionDto ->{
+					Version version = Optional.ofNullable(versionDto).map(versionMapper::dtoToEntity).orElse(null);
+					if (version != null) {
+						versionRepository.save(version);
+					}
+				});
+		} catch (Exception e) {
+			log.error("ERROR PROCESS FUCNTION: SAVES VERSION_DTO EXCEPTION: {}", versionDtos);
+		}
+	}
+}

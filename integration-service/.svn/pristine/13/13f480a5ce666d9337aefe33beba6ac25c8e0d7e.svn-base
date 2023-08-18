@@ -1,0 +1,346 @@
+package com.gg.gpos.integration.manager;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
+import com.gg.gpos.menu.dto.SyncResponseDto;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.gg.gpos.common.constant.FunctionTypeEnum;
+import com.gg.gpos.common.constant.HeaderEnum;
+import com.gg.gpos.common.constant.ModuleTypeEnum;
+import com.gg.gpos.common.constant.PhotoPushResultEnum;
+import com.gg.gpos.common.constant.ResultEnum;
+import com.gg.gpos.common.constant.SymbolEnum;
+import com.gg.gpos.common.constant.SyncStatusEnum;
+import com.gg.gpos.common.constant.SystemParamEnum;
+import com.gg.gpos.common.constant.TypeSyncEnum;
+import com.gg.gpos.common.constant.UploadImageEnum;
+import com.gg.gpos.common.json.FileContent;
+import com.gg.gpos.common.json.SyncResponse;
+import com.gg.gpos.integration.dto.SyncDto;
+import com.gg.gpos.reference.dto.AttachmentDto;
+import com.gg.gpos.reference.manager.AttachmentManager;
+import com.gg.gpos.reference.manager.SystemParameterManager;
+import com.gg.gpos.res.dto.RestaurantDto;
+import com.gg.gpos.res.manager.RestaurantManager;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+public class ThreadSyncFileManager {
+	@Autowired
+    private ThreadPoolTaskExecutor taskExecutor;
+	@Autowired
+	private SyncManager syncManager;
+	@Autowired
+	private RestaurantSyncManager restaurantSyncManager;
+	@Autowired
+	private SystemParameterManager systemParameterManager;
+	@Autowired
+	private RestaurantManager restaurantManager;
+	@Autowired
+	private AttachmentManager attachmentManager;
+	
+	private List<Integer> restaurantCodeAsyncs = new ArrayList<>();
+	private List<Integer> restaurantcodeSyncNow = new ArrayList<>();
+	public SyncResponseDto syncNow(SyncDto syncDto) {
+		log.info("ENTERING SYNC_FILE, SYNC_DTO: {}", syncDto);
+		SyncResponseDto syncResponseDto = new SyncResponseDto();
+		syncResponseDto.setStatus(true);
+		if(restaurantcodeSyncNow.size() < 1) {
+			if(!restaurantCodeAsyncs.contains(syncDto.getRestaurantCode())) {
+				syncDto.setSyncStartDate(LocalDateTime.now());
+				syncManager.updateSync(syncDto, ResultEnum.WAITING_SYNC.val, SyncStatusEnum.WAIT_FOR_SYNC_NOW.val);
+			} else {
+				syncResponseDto.setStatus(false);
+				syncResponseDto.setMessage("Nhà hàng thực hiện việc đồng bộ. Để tránh việc có thể xảy ra lỗi khi thực hiện đồng bộ. Vùi lòng chờ cho tác vụ hoàn thành hoặc chọn nhà hàng khác.");
+			}
+		} else {
+			syncResponseDto.setStatus(false);
+			syncResponseDto.setMessage("Hệ thống đang có 1 tác vụ thực hiện việc đồng bộ bộ ngay. Vùi lòng chờ cho tác vụ này hoàn thành.");
+		}
+		return syncResponseDto;
+	}
+	
+	public void syncFile(List<SyncDto> syncDtoHasStatusWattings, List<SyncDto> syncDtoHasStatusInProcessings, List<SyncDto> syncDtoTypeFileDataHasStatusWaitForSyncNow) {
+		log.info("ENTERING JOB SYNC_FILE, SYNC_DTO_HAS_STATUS_WATTINGS: {}, SYNC_DTO_HAS_STATUS_INPROCESSINGS: {}", syncDtoHasStatusWattings, syncDtoHasStatusInProcessings);
+		// Tạo danh sách các CompletableFuture để lưu trữ các tác vụ xử lý nhà hàng
+        List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
+       
+        if(!CollectionUtils.isEmpty(syncDtoHasStatusInProcessings)) {
+	        for (SyncDto syncDtoHasStatusInProcessing : syncDtoHasStatusInProcessings) {
+	        	if(!restaurantCodeAsyncs.contains(syncDtoHasStatusInProcessing.getRestaurantCode()) && restaurantCodeAsyncs.size() < 2) {
+					syncDtoHasStatusInProcessing.setSyncStartDate(LocalDateTime.now());
+	        		syncManager.updateSync(syncDtoHasStatusInProcessing, ResultEnum.WAITING_RESULT.val);
+					restaurantCodeAsyncs.add(syncDtoHasStatusInProcessing.getRestaurantCode());
+					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+		                // Xử lý đồng bộ cho từng nhà hàng
+						syncRestaurantData(syncDtoHasStatusInProcessing);
+		            }, taskExecutor);
+		            completableFutures.add(future);
+	        	}
+	            
+	        }
+		}
+        
+        if(!CollectionUtils.isEmpty(syncDtoHasStatusWattings)) {
+	        for (SyncDto syncDtoHasStatusWatting : syncDtoHasStatusWattings) {
+	        	if(!restaurantCodeAsyncs.contains(syncDtoHasStatusWatting.getRestaurantCode()) && restaurantCodeAsyncs.size() < 2) {
+					syncDtoHasStatusWatting.setSyncStartDate(LocalDateTime.now());
+	        		syncManager.updateSync(syncDtoHasStatusWatting, ResultEnum.WAITING_RESULT.val);
+					restaurantCodeAsyncs.add(syncDtoHasStatusWatting.getRestaurantCode());
+					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+		                // Xử lý đồng bộ cho từng nhà hàng
+						syncRestaurantData(syncDtoHasStatusWatting);
+		            }, taskExecutor);
+		            completableFutures.add(future);
+	        	}
+	        }
+		}
+
+		if(!CollectionUtils.isEmpty(syncDtoTypeFileDataHasStatusWaitForSyncNow)) {
+			for (SyncDto syncDto : syncDtoTypeFileDataHasStatusWaitForSyncNow) {
+				if(!restaurantCodeAsyncs.contains(syncDto.getRestaurantCode()) && restaurantcodeSyncNow.size() < 1) {
+					syncDto.setSyncStartDate(LocalDateTime.now());
+					syncManager.updateSync(syncDto, ResultEnum.WAITING_RESULT.val, SyncStatusEnum.WAIT_FOR_SYNC_NOW.val);
+					restaurantcodeSyncNow.add(syncDto.getRestaurantCode());
+					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+						// Xử lý đồng bộ cho từng nhà hàng
+						syncRestaurantData(syncDto);
+					}, taskExecutor);
+					completableFutures.add(future);
+				}
+			}
+		}
+
+//        // Sử dụng CompletableFuture.allOf để đợi tất cả các tác vụ hoàn thành
+//        CompletableFuture<Void> allFutures = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+//
+//        // Đăng ký một hàm gọi lại (callback) để thực thi khi tất cả các tác vụ hoàn thành
+//        allFutures.thenRun(() -> {
+//        	log.debug("================>>JOB SYNC_FILE COMPLETE");
+//            // Thực thi các hành động tiếp theo sau khi hoàn thành xử lý
+//            restaurantCodeAsyncs = new ArrayList<>();
+//			restaurantcodeSyncNow = new ArrayList<>();
+//        });
+//
+//        // Đợi tất cả các tác vụ hoàn thành
+//        allFutures.join();
+    }
+	
+	private void syncRestaurantData(SyncDto syncDto) {
+    	Boolean isFinishProcess = false;
+		try {
+    		// các biến cần dùng
+    		String imgCategoryFolderUpload = UploadImageEnum.IMG_CATEGORY_FOLDER.val;
+    		String videoCategoryFolderUpload = UploadImageEnum.VIDEO_CATEGORY_FOLDER.val;
+    		String imgMenuFolderUpload = UploadImageEnum.IMG_MENU_FOLDER.val;
+    		List<AttachmentDto> attachmentDtos = new ArrayList<>();
+    		
+    		String typeSync = syncDto.getTypeSync();
+    		
+    		String gatewayUrl = systemParameterManager.get(SystemParamEnum.API_GATEWAY_URL.param).getParamValue();
+    		Integer restaurantCode = syncDto.getRestaurantCode();
+    		String restaurantName = syncDto.getRestaurantName();
+    		// đồng bộ dữ liệu xuống SERVER NHÀ HÀNG
+    		if(typeSync.equals(TypeSyncEnum.SYNC_FILE_DATA_TO_SERVER_RESTAURANT.val) ) {
+    			// Lấy thông tin một số API_URL
+	        	Map<String, String> urls = systemParameterManager.gets(SystemParamEnum.API_BUSINESS_PREFIX.param); 
+		    	String checkOffOnlineRestaurantUrl = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_CHECK_STATUS_RESTAURANT_PATTERN.param); 
+		    	String apiUrlFile = gatewayUrl + urls.get(SystemParamEnum.API_BUSINESS_FILESAVE_PATTERN.param);
+    			
+		    	RestaurantDto restaurantDto = restaurantManager.get(restaurantCode);
+				if(restaurantDto != null) {
+    				// Thực hiện convert dữ liệu thành json sau đó mới gửi thông tin đến SERVER của NHÀ HÀNG
+					if(restaurantDto.getIp() != null && restaurantDto.getPort() != null) {
+						// trường hợp CÓ thông tin nhà hàng thì kiểm tra xem server của nhà hàng co online không
+						if(checkOnlineRestaurant(checkOffOnlineRestaurantUrl, restaurantCode)) {
+							
+							// Check xem có thông tin liên quan đến ModuleId ảnh để đồng bộ không 
+							if(!CollectionUtils.isEmpty(syncDto.getTmpSyncs())) {
+								syncDto.getTmpSyncs().stream().forEach(tmpSync ->{
+									attachmentDtos.addAll(attachmentManager.getByTmpSyncType(tmpSync.getType(), tmpSync.getCatalogId()));
+								});
+							}
+							
+							Set<String> categoryCodeFails = new HashSet<>();
+							Set<String> foodItemCodeFails = new HashSet<>();
+							Set<String> foodGroupCodeFails = new HashSet<>();
+							
+							// Phần đồng bộ ảnh => Tạo mới bản ghi có trạng thái chờ đồng bộ
+							if(!CollectionUtils.isEmpty(attachmentDtos)) {
+						    	Integer count = 1;
+						    	Integer countSuccess = 0;
+						    	Integer size = attachmentDtos.size();
+						    	
+						    	for(AttachmentDto attachment : attachmentDtos) {
+						    		String moduleCode = attachment.getModuleCode();
+						        	String moduleType = attachment.getModuleType();
+						        	
+						        	try {
+						        		if (StringUtils.isNotBlank(attachment.getAbsolutePath())) {
+						    	            Path path = Paths.get(attachment.getAbsolutePath());
+						    	            if (Files.exists(path)) {
+						    	            	FileContent fileContent = new FileContent();
+						        	            byte[] data = Files.readAllBytes(path);
+						        	            fileContent.setFile(data);
+						        	            fileContent.setFileName(attachment.getFileName());
+						        	            if(moduleType.equals(ModuleTypeEnum.CO_CATEGORY.val)) {
+						        	            	if(attachment.getFunctionType().equals(FunctionTypeEnum.VIDEO_ABOUTUS_MENU.val) || attachment.getFunctionType().equals(FunctionTypeEnum.VIDEO_ABOUTUS_RES.val)) {
+							        	            	fileContent.setFolder(videoCategoryFolderUpload);
+							        	            } else {
+							        	            	fileContent.setFolder(imgCategoryFolderUpload);
+							        	            }
+						        	            } else {
+						        	            	fileContent.setFolder(imgMenuFolderUpload);
+						        	            }
+						        	            // gửi dữ liệu đi
+						        	            SyncResponse syncResponse = sendData(apiUrlFile, fileContent, restaurantCode.toString());
+							        			log.debug("RESULT SYNC_FILE: {}", syncResponse);
+							        			if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+							        				if(moduleType.equals(ModuleTypeEnum.CO_CATEGORY.val)) {
+							    	            		categoryCodeFails.add(moduleCode);
+							    	            	} else if(moduleType.equals(ModuleTypeEnum.CO_FOOD_ITEM.val)) {
+							    	            		foodItemCodeFails.add(moduleCode);
+							    	            	} else {
+							    	            		foodGroupCodeFails.add(moduleCode);
+							    	            	}
+							        				attachmentManager.updateAttachment(attachment.getId(), restaurantCode, SyncStatusEnum.FAIL.val, moduleCode, restaurantName);
+							        			} else {
+							        				attachmentManager.updateAttachment(attachment.getId(), restaurantCode, SyncStatusEnum.SUCCESS.val, moduleCode, restaurantName);
+							        				countSuccess++;
+							        			}
+							        			// cập nhật lại số lượng ảnh đã đẩy
+									        	String resultSyncFile = resultSync(size ,count , null, null, null, false);
+									        	syncManager.updateSync(syncDto, resultSyncFile);
+									        	count++;
+						    	            } else {
+						    	            	if(moduleType.equals(ModuleTypeEnum.CO_CATEGORY.val)) {
+						    	            		categoryCodeFails.add(moduleCode);
+						    	            	} else if(moduleType.equals(ModuleTypeEnum.CO_FOOD_ITEM.val)) {
+						    	            		foodItemCodeFails.add(moduleCode);
+						    	            	} else {
+						    	            		foodGroupCodeFails.add(moduleCode);
+						    	            	}
+						    	            	attachmentManager.updateAttachment(attachment.getId(), restaurantCode, SyncStatusEnum.FAIL.val, moduleCode, restaurantName);
+						    	            }
+						        		} else {
+						        			attachmentManager.updateAttachment(attachment.getId(), restaurantCode, SyncStatusEnum.FAIL.val, moduleCode, restaurantName);
+						        			if(moduleType.equals(ModuleTypeEnum.CO_CATEGORY.val)) {
+					    	            		categoryCodeFails.add(moduleCode);
+					    	            	} else if(moduleType.equals(ModuleTypeEnum.CO_FOOD_ITEM.val)) {
+					    	            		foodItemCodeFails.add(moduleCode);
+					    	            	} else {
+					    	            		foodGroupCodeFails.add(moduleCode);
+					    	            	}
+						        		}
+									} catch (IOException e) {
+										attachmentManager.updateAttachment(attachment.getId(), restaurantCode, SyncStatusEnum.FAIL.val, moduleCode, restaurantName);
+										if(moduleType.equals(ModuleTypeEnum.CO_CATEGORY.val)) {
+				    	            		categoryCodeFails.add(moduleCode);
+				    	            	} else if(moduleType.equals(ModuleTypeEnum.CO_FOOD_ITEM.val)) {
+				    	            		foodItemCodeFails.add(moduleCode);
+				    	            	} else {
+				    	            		foodGroupCodeFails.add(moduleCode);
+				    	            	}
+										log.error("ERROR: A IOEXCEPTION: {}", e);
+									}
+								}
+					        	// save syncArchive after sync
+						        String resultSyncFile = resultSync(size, countSuccess, categoryCodeFails, foodItemCodeFails, foodGroupCodeFails, true);
+								isFinishProcess = syncManager.deleteSyncFileDataAndInsertSyncArchiveAfterSync(syncDto, resultSyncFile);
+							} else {
+								isFinishProcess = syncManager.deleteSyncAndInsertSyncArchiveAfterSync(syncDto, "ATTACHMENT DATA NULL");
+							}
+						} else {
+							// trường hợp không có thông tin nhà hàng thì lưu lại vào bảng "thông tin danh sách đồng bộ"
+							isFinishProcess = syncManager.deleteSyncAndInsertSyncArchiveAfterSync(syncDto, ResultEnum.RESTAURANT_OFFLINE.val);
+						}
+					} else {
+						isFinishProcess = syncManager.deleteSyncAndInsertSyncArchiveAfterSync(syncDto, ResultEnum.NOT_IP_OR_NOT_PORT.val);
+					}
+				}
+    		}
+		} catch (Exception e) {
+			log.error("ERROR SYNC_RESTAURANT_DATA EXCEPTION: {}", e);
+			isFinishProcess = syncManager.deleteSyncAndInsertSyncArchiveAfterSync(syncDto, e.getMessage());
+		}
+		if (isFinishProcess) {
+			if (syncDto.getStatus().equals(SyncStatusEnum.WAIT_FOR_SYNC_NOW.val)) {
+				restaurantcodeSyncNow.removeIf(number -> number == syncDto.getRestaurantCode());
+			} else {
+				restaurantCodeAsyncs.removeIf(number -> number == syncDto.getRestaurantCode());
+			}
+		}
+    }
+	
+    private boolean checkOnlineRestaurant(String apiUrl, Integer resCode) {
+    	log.debug("PROCESS FUNCTION: CHECK OFF/ONLINE RESTAURANT");    
+    	boolean check;
+    	try {
+    		check = restaurantSyncManager.check(apiUrl,resCode);
+		} catch (JsonProcessingException e) {
+			check = false;
+			e.printStackTrace();
+		}
+    	return check;
+    }
+    
+    private String resultSync(Integer size, Integer count, Set<String> categoryCodes, Set<String> foodItemCodes, Set<String> foodGroupCodes, boolean isFinish) {
+		StringBuilder builder = new StringBuilder();
+		if(isFinish) {
+			builder.append(PhotoPushResultEnum.PHOTO_PUSH_RESULT.val).append(count).append(SymbolEnum.SLASH.val).append(size).append(SymbolEnum.SPACE.val).append(SymbolEnum.BRACKETS_LEFT.val).append(categoryCodes.size()).append(PhotoPushResultEnum.CATEOGRY.val);
+			builder.append(categoryCodes).append(SymbolEnum.COMMA.val).append(SymbolEnum.SPACE.val).append(foodItemCodes.size()).append(PhotoPushResultEnum.CO_FOODITEM.val).append(foodItemCodes);
+			builder.append(SymbolEnum.COMMA.val).append(SymbolEnum.SPACE.val).append(foodGroupCodes.size()).append(PhotoPushResultEnum.FOOD_GROUP.val).append(foodGroupCodes).append(SymbolEnum.BRACKETS_RIGHT.val);
+		} else {
+			builder.append(PhotoPushResultEnum.PHOTO_PUSH_PROCESS.val).append(count).append(SymbolEnum.SLASH.val).append(size);
+		}
+		return builder.toString();
+	}
+    
+    private SyncResponse sendData(final String apiUrlFile, final FileContent f, final String restaurantCode) {
+    	log.info("==========================>>>>> SEND FILE_DATA TO RESTAURANT");
+		log.debug("=> URL: " + apiUrlFile);
+		log.debug("=> JSON-DATA: " + f.jsonLog());
+		log.debug("=> RESTAURANT_CODE: " + restaurantCode);
+		
+		try {
+			RestTemplate restTemplate = new RestTemplate();
+    		HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8));
+			headers.setAccept(Collections.singletonList(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)));
+			headers.add(HeaderEnum.KEY_RES_CODE.getKey(), restaurantCode.toString());
+			HttpEntity<?> requestEntity = new HttpEntity<>(f.toJsonString(), headers);
+			return restTemplate.exchange(apiUrlFile, HttpMethod.POST, requestEntity, SyncResponse.class).getBody();
+		} catch(Exception e) {
+			log.error("ERROR PROCESS: SEND FILE_DATA TO RESTAURANT EXCEPTION: {}", e);
+			SyncResponse syncResponse = new SyncResponse();
+			syncResponse.setCode(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()));
+			return syncResponse;
+		}
+	}
+}

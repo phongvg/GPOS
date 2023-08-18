@@ -1,0 +1,15 @@
+package com.gg.gpos.menu.repository;
+
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import com.gg.gpos.menu.entity.RestaurantMaster;
+
+@Repository
+public interface RestaurantMasterRepository extends JpaRepository<RestaurantMaster, Long>, JpaSpecificationExecutor<RestaurantMaster> {
+	RestaurantMaster findByCode(String code);
+	@Query("from RestaurantMaster rm where rm.status=3")
+	List<RestaurantMaster> findActives();
+}

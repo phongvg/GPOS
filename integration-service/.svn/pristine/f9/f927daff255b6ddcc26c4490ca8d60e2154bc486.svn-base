@@ -1,0 +1,240 @@
+package com.gg.gpos.integration.manager;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+
+import com.gg.gpos.common.constant.FunctionTypeEnum;
+import com.gg.gpos.common.constant.ModuleTypeEnum;
+import com.gg.gpos.common.constant.SyncStatusEnum;
+import com.gg.gpos.common.constant.UploadImageEnum;
+import com.gg.gpos.common.json.FileContent;
+import com.gg.gpos.common.json.RestaurantFileDataSync;
+import com.gg.gpos.integration.dto.SyncDto;
+import com.gg.gpos.reference.dto.AttachmentDto;
+import com.gg.gpos.reference.entity.Attachment;
+import com.gg.gpos.reference.mapper.AttachmentMapper;
+import com.gg.gpos.reference.repository.AttachmentRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class SyncFileDataManager {
+	@Autowired
+	private AttachmentRepository attachmentRepository;
+	@Autowired
+	private AttachmentMapper attachmentMapper;
+	
+	/*
+	 * Convert List thành file Json (trạng thái GHI ĐÈ)
+	 */
+	public RestaurantFileDataSync converFileDataToJso(SyncDto syncDto) {
+		log.debug("PROCESS FUNCTION: CONVERT ATTACHMENT LIST TO JSON, SYNC_DTO: {}", syncDto);
+		
+		RestaurantFileDataSync restaurantFileDataSync = new RestaurantFileDataSync();
+		
+		// các biến cần dùng
+		String coCategoryModuleType = ModuleTypeEnum.CO_CATEGORY.val;
+		String coFoodItemModuleType = ModuleTypeEnum.CO_FOOD_ITEM.val;
+		String foodGroupModuleType = ModuleTypeEnum.FOOD_GROUP.val;
+		String imgCategoryFolderUpload = UploadImageEnum.IMG_CATEGORY_FOLDER.val;
+		String videoCategoryFolderUpload = UploadImageEnum.VIDEO_CATEGORY_FOLDER.val;
+		String imgMenuFolderUpload = UploadImageEnum.IMG_MENU_FOLDER.val;
+		
+		List<String> categoryCodeFails = new ArrayList<>();
+    	List<String> foodItemCodeFails = new ArrayList<>();
+    	List<String> foodGroupCodeFails = new ArrayList<>();
+		
+    	
+    	List<AttachmentDto> foodGroupImages = new ArrayList<>();
+    	List<AttachmentDto> coCategoryImages = new ArrayList<>();
+    	List<AttachmentDto> coFoodItemImages = new ArrayList<>();
+    	
+    	List<FileContent> fileAttachments = new ArrayList<>();
+		try {
+			Integer restaurantCode = syncDto.getRestaurantCode();
+			String restaurantName = syncDto.getRestaurantName();
+			// PHẦN THÔNG TIN LIÊN QUAN ĐẾN CO_CATEGORY
+			if(syncDto.getOverride()) {
+				List<AttachmentDto> attachmentExistingDtos = attachmentRepository.findByRestaurantCodeAndFunctionTypeNot(restaurantCode, FunctionTypeEnum.QR_ORDER_PHOTO.val).stream().map(attachmentMapper::entityToDto).collect(Collectors.toList());
+				if(!CollectionUtils.isEmpty(attachmentExistingDtos)){
+					attachmentExistingDtos.stream().forEach(item -> {
+						switch (item.getModuleType()) {
+						case "co-food-item":
+							coFoodItemImages.add(item);
+							break;
+						case "co-category":
+							coCategoryImages.add(item);
+							break;
+						case "food-group":
+							foodGroupImages.add(item);
+							break;
+						default:
+							// notthing
+							break;
+						}
+					});
+				}
+			} else {
+				if(!CollectionUtils.isEmpty(syncDto.getTmpSyncs())){
+					syncDto.getTmpSyncs().stream().forEach(tmpSync ->{
+						switch (tmpSync.getType()) {
+						case "co-food-item":
+							coFoodItemImages.addAll(attachmentRepository.findByModuleIdAndModuleTypeAndFunctionTypeNot(tmpSync.getCatalogId(), coFoodItemModuleType, FunctionTypeEnum.QR_ORDER_PHOTO.val).stream().map(attachmentMapper::entityToDto).collect(Collectors.toList()));
+							break;
+						case "co-category":
+							coCategoryImages.addAll(attachmentRepository.findByModuleIdAndModuleType(tmpSync.getCatalogId(), coCategoryModuleType).stream().map(attachmentMapper::entityToDto).collect(Collectors.toList()));
+							break;
+						case "food-group":
+							foodGroupImages.addAll(attachmentRepository.findByModuleIdAndModuleType(tmpSync.getCatalogId(), foodGroupModuleType).stream().map(attachmentMapper::entityToDto).collect(Collectors.toList()));
+							break;
+						default:
+							// notthing
+							break;
+						}
+					});
+				}
+			}
+			
+			// FOOD_GROUP IMAGE
+			if(!CollectionUtils.isEmpty(foodGroupImages)) {
+				for(AttachmentDto f : foodGroupImages) {
+					FileContent fileContent = new FileContent();
+					try {
+		        		if (StringUtils.isNotBlank(f.getAbsolutePath())) {
+		    	            Path path = Paths.get(f.getAbsolutePath());
+		    	            if (Files.exists(path)) {
+		        	            byte[] data = Files.readAllBytes(path);
+		        	            fileContent.setAttachmentId(f.getId());
+		        	            fileContent.setFile(data);
+		        	            fileContent.setResCode(restaurantCode);
+		        	            fileContent.setFileName(f.getFileName());
+		        	            fileContent.setFolder(imgMenuFolderUpload);
+		        	            fileContent.setType(foodGroupModuleType);
+		        	            fileContent.setCode(f.getModuleCode());
+		        	            fileAttachments.add(fileContent);
+		    	            } else {
+		    	            	foodGroupCodeFails.add(f.getModuleCode());
+		    	            	updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+		    	            }
+		        		} else {
+		        			updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+		        			foodGroupCodeFails.add(f.getModuleCode());
+		        		}
+					} catch (IOException e) {
+						updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+						foodGroupCodeFails.add(f.getModuleCode());
+						log.error("ERROR: FOOD_GROUP IOEXCEPTION: {}", e);
+					}
+				}
+			}
+			
+			// CO_CATEGORY IMAGE
+			if(!CollectionUtils.isEmpty(coCategoryImages)) {
+				for(AttachmentDto f : coCategoryImages) {
+					FileContent fileContent = new FileContent();
+					try {
+		        		if (StringUtils.isNotBlank(f.getAbsolutePath())) {
+		    	            Path path = Paths.get(f.getAbsolutePath());
+		    	            if (Files.exists(path)) {
+		        	            byte[] data = Files.readAllBytes(path);
+		        	            fileContent.setAttachmentId(f.getId());
+		        	            fileContent.setResCode(restaurantCode);
+		        	            fileContent.setFile(data);
+		        	            fileContent.setFileName(f.getFileName());
+		        	            fileContent.setType(coCategoryModuleType);
+		        	            fileContent.setCode(f.getModuleCode());
+		        	            if(f.getFunctionType().equals(FunctionTypeEnum.VIDEO_ABOUTUS_MENU.val) || f.getFunctionType().equals(FunctionTypeEnum.VIDEO_ABOUTUS_RES.val)) {
+		        	            	fileContent.setFolder(videoCategoryFolderUpload);
+		        	            } else {
+		        	            	fileContent.setFolder(imgCategoryFolderUpload);
+		        	            }
+		        	            fileAttachments.add(fileContent);
+		    	            } else {
+		    	            	categoryCodeFails.add(f.getModuleCode());
+		    	            	updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+		    	            }
+		        		} else {
+		        			updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+		        			categoryCodeFails.add(f.getModuleCode());
+		        		}
+					} catch (IOException e) {
+						updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+						categoryCodeFails.add(f.getModuleCode());
+						log.error("ERROR: CO_CATEGORY IOEXCEPTION: {}", e);
+					}
+				}
+			}
+			
+			// CO_FOOD_ITEM IMAGE
+			if(!CollectionUtils.isEmpty(foodGroupImages)) {
+				for(AttachmentDto f : foodGroupImages) {
+					FileContent fileContent = new FileContent();
+					try {
+		        		if (StringUtils.isNotBlank(f.getAbsolutePath())) {
+		    	            Path path = Paths.get(f.getAbsolutePath());
+		    	            if (Files.exists(path)) {
+		        	            byte[] data = Files.readAllBytes(path);
+		        	            fileContent.setFile(data);
+		        	            fileContent.setResCode(restaurantCode);
+		        	            fileContent.setAttachmentId(f.getId());
+		        	            fileContent.setFileName(f.getFileName());
+		        	            fileContent.setFolder(imgMenuFolderUpload);
+		        	            fileContent.setType(coFoodItemModuleType);
+		        	            fileContent.setCode(f.getModuleCode());
+		        	            fileAttachments.add(fileContent);
+		    	            } else {
+		    	            	foodItemCodeFails.add(f.getModuleCode());
+		    	            	updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+		    	            }
+		        		} else {
+		        			updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+		        			foodItemCodeFails.add(f.getModuleCode());
+		        		}
+					} catch (IOException e) {
+						updateAttachment(f.getId(), restaurantCode, SyncStatusEnum.FAIL.val, f.getModuleCode(), restaurantName);
+						foodItemCodeFails.add(f.getModuleCode());
+						log.error("ERROR: CO_FOOD_ITEM IOEXCEPTION: {}", e);
+					}
+				}
+			}
+			
+			restaurantFileDataSync.setFileContents(fileAttachments);
+			restaurantFileDataSync.setCategoryCodeFails(categoryCodeFails);
+			restaurantFileDataSync.setResCode(restaurantCode.toString());
+			restaurantFileDataSync.setFoodGroupCodeFails(foodGroupCodeFails);
+			restaurantFileDataSync.setFoodItemCodeFails(foodItemCodeFails);
+		} catch (Exception e) {
+			log.error("ERROR PROCESS FUNCTION: CONVERT ATTACHMENT LIST TO JSON EXCEPTION: {}", e);
+		}
+		return restaurantFileDataSync;
+	}
+	
+	private void updateAttachment(Long id, Integer resCode ,String result,String code,String resName) {
+		Optional<Attachment> attachmentOptional = attachmentRepository.findById(id);
+		if(attachmentOptional.isPresent()) {
+			Attachment attachment = attachmentOptional.get();
+			if(attachment != null) {
+				attachment.setSyncStatus(result);
+				attachment.setRestaurantCode(resCode);
+				attachment.setRestaurantName(resName);
+				attachment.setModuleCode(code);
+				attachmentRepository.save(attachment);
+			}
+		}
+	}
+}

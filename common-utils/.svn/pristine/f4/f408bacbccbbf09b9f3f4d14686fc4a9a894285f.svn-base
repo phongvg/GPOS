@@ -1,0 +1,372 @@
+package com.gg.gpos.menu.dto;
+
+public class ICoCatalogDto {
+
+	//field 0->14
+	//CoFoodItem
+	private String foodItemCode;
+	private String foodItemNameVn;
+	private String foodItemNameEn;
+	private String foodItemDescVn;
+	private String foodItemDescEn;
+	private Double kalo;
+	private Double maxPerTransaction;
+	private Double maxForKitchen;
+	private Double imgSize;
+	private String infoFoodItem;
+	private String horizontalPhoto;
+	private String verticalPhoto; 
+	private String quarterPhoto; 
+	
+
+	//Attachment
+	private String avatarUrl;
+	private String thumbnailUrl;
+	
+	//FoodItem
+	private String foodItemNameDetailEn;
+	
+	//Related foodItem
+	private String foodItemRelate;
+	private String foodItemSize;
+	
+	//Modifier
+	private String modifiers;
+	
+	//field 15->21
+	private String label;
+	private String halfPhoto;
+	private String toppingPhoto;
+	private Double comboIndex;
+	private String groupPhoto;
+	private String groupHiddenPhoto;
+	private String nameBF;
+	
+	//status check import
+	private boolean status;
+	private String error;
+	private Double viewType;
+	private String kaloGroupCode;
+	private String kaloGroupName;
+	private String sapCode;
+	private String extraFoodItem;
+	private String noteQuantitative;
+	private String note;
+	private Double hideIcon;
+	private Double numberOfPeopleEat;
+	private String kaloGroup;
+	private String topping;
+	
+	public String getTopping() {
+		return topping;
+	}
+
+	public void setTopping(String topping) {
+		this.topping = topping;
+	}
+
+	public String getKaloGroup() {
+		return kaloGroup;
+	}
+
+	public void setKaloGroup(String kaloGroup) {
+		this.kaloGroup = kaloGroup;
+	}
+
+	public String getNoteQuantitative() {
+		return noteQuantitative;
+	}
+
+	public void setNoteQuantitative(String noteQuantitative) {
+		this.noteQuantitative = noteQuantitative;
+	}
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
+
+	public Double getHideIcon() {
+		return hideIcon;
+	}
+
+	public void setHideIcon(Double hideIcon) {
+		this.hideIcon = hideIcon;
+	}
+
+	public Double getNumberOfPeopleEat() {
+		return numberOfPeopleEat;
+	}
+
+	public void setNumberOfPeopleEat(Double numberOfPeopleEat) {
+		this.numberOfPeopleEat = numberOfPeopleEat;
+	}
+
+	public String getExtraFoodItem() {
+		return extraFoodItem;
+	}
+
+	public void setExtraFoodItem(String extraFoodItem) {
+		this.extraFoodItem = extraFoodItem;
+	}
+
+	public String getSapCode() {
+		return sapCode;
+	}
+
+	public void setSapCode(String sapCode) {
+		this.sapCode = sapCode;
+	}
+
+	public String getKaloGroupCode() {
+		return kaloGroupCode;
+	}
+
+	public void setKaloGroupCode(String kaloGroupCode) {
+		this.kaloGroupCode = kaloGroupCode;
+	}
+
+	public String getKaloGroupName() {
+		return kaloGroupName;
+	}
+
+	public void setKaloGroupName(String kaloGroupName) {
+		this.kaloGroupName = kaloGroupName;
+	}
+
+	public String getQuarterPhoto() {
+		return quarterPhoto;
+	}
+
+	public void setQuarterPhoto(String quarterPhoto) {
+		this.quarterPhoto = quarterPhoto;
+	}
+	
+	public String getFoodItemSize() {
+		return foodItemSize;
+	}
+
+	public void setFoodItemSize(String foodItemSize) {
+		this.foodItemSize = foodItemSize;
+	}
+
+	public Double getViewType() {
+		return viewType;
+	}
+
+	public void setViewType(Double viewType) {
+		this.viewType = viewType;
+	}
+
+	public String getError() {
+		return error;
+	}
+
+	public void setError(String error) {
+		this.error = error;
+	}
+
+
+	public boolean isStatus() {
+		return status;
+	}
+
+	public void setStatus(boolean status) {
+		this.status = status;
+	}
+
+	public Double getImgSize() {
+		return imgSize;
+	}
+
+	public void setImgSize(Double imgSize) {
+		this.imgSize = imgSize;
+	}
+
+	public String getInfoFoodItem() {
+		return infoFoodItem;
+	}
+
+	public void setInfoFoodItem(String infoFoodItem) {
+		this.infoFoodItem = infoFoodItem;
+	}
+
+	public String getHorizontalPhoto() {
+		return horizontalPhoto;
+	}
+
+	public void setHorizontalPhoto(String horizontalPhoto) {
+		this.horizontalPhoto = horizontalPhoto;
+	}
+
+	public String getVerticalPhoto() {
+		return verticalPhoto;
+	}
+
+	public void setVerticalPhoto(String verticalPhoto) {
+		this.verticalPhoto = verticalPhoto;
+	}
+
+	public String getFoodItemCode() {
+		return foodItemCode;
+	}
+
+	public void setFoodItemCode(String foodItemCode) {
+		this.foodItemCode = foodItemCode;
+	}
+
+	public String getFoodItemNameVn() {
+		return foodItemNameVn;
+	}
+
+	public void setFoodItemNameVn(String foodItemNameVn) {
+		this.foodItemNameVn = foodItemNameVn;
+	}
+
+	public String getFoodItemNameEn() {
+		return foodItemNameEn;
+	}
+
+	public void setFoodItemNameEn(String foodItemNameEn) {
+		this.foodItemNameEn = foodItemNameEn;
+	}
+
+	public String getFoodItemDescVn() {
+		return foodItemDescVn;
+	}
+
+	public void setFoodItemDescVn(String foodItemDescVn) {
+		this.foodItemDescVn = foodItemDescVn;
+	}
+
+	public String getFoodItemDescEn() {
+		return foodItemDescEn;
+	}
+
+	public void setFoodItemDescEn(String foodItemDescEn) {
+		this.foodItemDescEn = foodItemDescEn;
+	}
+
+	public String getAvatarUrl() {
+		return avatarUrl;
+	}
+
+	public void setAvatarUrl(String avatarUrl) {
+		this.avatarUrl = avatarUrl;
+	}
+
+	public String getThumbnailUrl() {
+		return thumbnailUrl;
+	}
+
+	public void setThumbnailUrl(String thumbnailUrl) {
+		this.thumbnailUrl = thumbnailUrl;
+	}
+
+	public String getFoodItemNameDetailEn() {
+		return foodItemNameDetailEn;
+	}
+
+	public void setFoodItemNameDetailEn(String foodItemNameDetailEn) {
+		this.foodItemNameDetailEn = foodItemNameDetailEn;
+	}
+
+	public Double getKalo() {
+		return kalo;
+	}
+
+	public void setKalo(Double kalo) {
+		this.kalo = kalo;
+	}
+
+	public String getFoodItemRelate() {
+		return foodItemRelate;
+	}
+
+	public void setFoodItemRelate(String foodItemRelate) {
+		this.foodItemRelate = foodItemRelate;
+	}
+
+	public String getModifiers() {
+		return modifiers;
+	}
+
+	public void setModifiers(String modifiers) {
+		this.modifiers = modifiers;
+	}
+
+	public Double getMaxPerTransaction() {
+		return maxPerTransaction;
+	}
+
+	public void setMaxPerTransaction(Double maxPerTransaction) {
+		this.maxPerTransaction = maxPerTransaction;
+	}
+
+	public Double getMaxForKitchen() {
+		return maxForKitchen;
+	}
+
+	public void setMaxForKitchen(Double maxForKitchen) {
+		this.maxForKitchen = maxForKitchen;
+	}
+
+	public String getLabel() {
+		return label;
+	}
+
+	public void setLabel(String label) {
+		this.label = label;
+	}
+
+	public String getHalfPhoto() {
+		return halfPhoto;
+	}
+
+	public void setHalfPhoto(String halfPhoto) {
+		this.halfPhoto = halfPhoto;
+	}
+
+	public String getToppingPhoto() {
+		return toppingPhoto;
+	}
+
+	public void setToppingPhoto(String toppingPhoto) {
+		this.toppingPhoto = toppingPhoto;
+	}
+
+	public Double getComboIndex() {
+		return comboIndex;
+	}
+
+	public void setComboIndex(Double comboIndex) {
+		this.comboIndex = comboIndex;
+	}
+
+	public String getGroupPhoto() {
+		return groupPhoto;
+	}
+
+	public void setGroupPhoto(String groupPhoto) {
+		this.groupPhoto = groupPhoto;
+	}
+
+	public String getGroupHiddenPhoto() {
+		return groupHiddenPhoto;
+	}
+
+	public void setGroupHiddenPhoto(String groupHiddenPhoto) {
+		this.groupHiddenPhoto = groupHiddenPhoto;
+	}
+
+	public String getNameBF() {
+		return nameBF;
+	}
+
+	public void setNameBF(String nameBF) {
+		this.nameBF = nameBF;
+	}
+}

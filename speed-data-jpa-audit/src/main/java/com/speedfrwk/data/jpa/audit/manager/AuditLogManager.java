@@ -1,0 +1,58 @@
+package com.speedfrwk.data.jpa.audit.manager;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.stream.Collectors;
+import javax.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import com.gg.gpos.audit.dto.AuditLogDto;
+import com.speedfrwk.data.jpa.audit.AuditLog;
+import com.speedfrwk.data.jpa.audit.mapper.AuditLogMapper;
+import com.speedfrwk.data.jpa.audit.repository.AuditLogRepository;
+import com.speedfrwk.data.jpa.audit.specification.AuditLogSpecification;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class AuditLogManager {
+	private AuditLogRepository auditLogRepository;
+	@Autowired
+	public void setAuditLogRepository(AuditLogRepository auditLogRepository) {
+		this.auditLogRepository = auditLogRepository;
+	}
+	private AuditLogMapper auditLogMapper;
+	@Autowired
+	public void setAuditLogMapper(AuditLogMapper auditLogMapper) {
+		this.auditLogMapper = auditLogMapper;
+	}
+	@Autowired
+	private AuditLogSpecification auditLogSpecification;
+	
+	public Page<AuditLogDto> gets(AuditLogDto criteria){
+		log.debug("Entering 'gets(criteria)' method...");
+		Date endDate = new Date();
+		Date startDate = new Date();
+		if(criteria.getKeyword() != null && !criteria.getKeyword().isEmpty()) {
+			String[] splits = criteria.getKeyword().split("-"); // start date -> end date : 02/02/2021 - 01/04/2021
+			String strStartDate = splits[0].trim() + " 00:00:00";
+			String strEndDate = splits[1].trim() + " 23:59:59";
+			try {
+				endDate = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").parse(strEndDate);
+				startDate = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").parse(strStartDate);  
+			} catch (ParseException e) {
+				log.error(e.getMessage());
+			}  
+			
+		}
+		Page<AuditLog> page = auditLogRepository.findAll(auditLogSpecification.filter(startDate,endDate),PageRequest.of(criteria.getPage(), criteria.getSize(), Sort.by(Sort.Direction.DESC, "modifiedDate")));
+		return new PageImpl<>(page.getContent().stream().map(auditLogMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()),page.getTotalElements());
+	}
+}

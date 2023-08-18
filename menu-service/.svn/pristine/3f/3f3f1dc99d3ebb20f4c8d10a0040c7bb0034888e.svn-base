@@ -1,0 +1,40 @@
+package com.gg.gpos.menu.specification;
+
+import java.util.ArrayList;
+import java.util.List;
+import javax.persistence.criteria.Predicate;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
+import com.gg.gpos.menu.entity.Currency;
+import com.gg.gpos.menu.entity.CurrencyRate;
+
+@Component
+public class CurrencyRateSpecification<T> {
+	
+	public Specification<CurrencyRate> search(final Long rate, final String status) {
+		return (root, cq, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			if (rate != null) {
+				predicates.add(cb.equal(root.get("rate"), rate));
+			}
+			if (StringUtils.isNotBlank(status)) {
+				predicates.add(cb.equal(root.get("status"), status));
+			}
+			return cb.and(predicates.stream().toArray(Predicate[]::new));
+		};
+	}
+
+	public Specification<Currency> search(final String rateClass, final String status) {
+		return (root, cq, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			if (StringUtils.isNotBlank(rateClass)) {
+				predicates.add(cb.like(root.get("rateClass"), "%" + rateClass + "%"));
+			}
+			if (StringUtils.isNotBlank(status)) {
+				predicates.add(cb.equal(root.get("status"), status));
+			}
+			return cb.and(predicates.stream().toArray(Predicate[]::new));
+		};
+	}
+}

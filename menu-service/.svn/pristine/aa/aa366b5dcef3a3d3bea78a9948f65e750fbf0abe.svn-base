@@ -1,0 +1,53 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import javax.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import com.gg.gpos.menu.dto.ModiSchemeDetailDto;
+import com.gg.gpos.menu.entity.ModiSchemeDetail;
+import com.gg.gpos.menu.mapper.ModiSchemeDetailMapper;
+import com.gg.gpos.menu.repository.ModiSchemeDetailRepository;
+import com.gg.gpos.menu.specification.ReferenceObjectSpecification;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class ModiSchemeDetailManager {
+	@Autowired
+	private ModiSchemeDetailRepository modiSchemeDetailRepository;
+	@Autowired
+	private ModiSchemeDetailMapper modiSchemeDetailMapper;
+	@Autowired
+	private ReferenceObjectSpecification<ModiSchemeDetail> referenceObjectSpecification;
+	
+	public ModiSchemeDetailDto get(Long id) {
+		return modiSchemeDetailRepository.findById(id).map(modiSchemeDetailMapper::entityToDto).orElse(null);
+	}
+	
+	public void save(List<ModiSchemeDetailDto> modiSchemeDetailDtos) {
+		log.debug("PROCESS: SAVE MODI_SCHEME_DETAILS, MODI_SCHEME_DETAIL_DTOS: {}", modiSchemeDetailDtos);
+		if (!modiSchemeDetailDtos.isEmpty()) {
+			modiSchemeDetailDtos.stream().forEach(f -> {
+				ModiSchemeDetail modiSchemeDetail = Optional.ofNullable(f).map(modiSchemeDetailMapper::dtoToEntity).orElse(null);
+				if (modiSchemeDetail != null) {
+					modiSchemeDetailRepository.save(modiSchemeDetail);
+				}
+			});
+		}
+	}
+	
+	public Page<ModiSchemeDetailDto> gets(ModiSchemeDetailDto criteria){
+		log.debug("PROCESS: GETS MODI_SCHEME_DETAIL, MODI_SCHEME_DETAIL_DTO: {}", criteria);
+		Specification<ModiSchemeDetail> spec = Specification.where(referenceObjectSpecification.search(criteria.getReadOnlyName()));
+		Page<ModiSchemeDetail> page = modiSchemeDetailRepository.findAll(spec, PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(modiSchemeDetailMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+}

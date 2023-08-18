@@ -1,0 +1,111 @@
+/*
+ * Copyright 2018. All rights reserved.
+ * This software is the confidential and proprietary information
+ * of GG ("Confidential Information").
+ * You shall not disclose such Confidential Information and shall
+ * use it only in accordance with the terms of the license agreement
+ * you entered into with GG.
+ */
+package com.gg.gpos.common.constant;
+
+/**
+ * The Enum MessageKeyEnum.
+ *
+ * @author <a href="mailto:ngtrungkien@gmail.com">Kien Nguyen</a>
+ */
+public enum MessageKeyEnum {
+	DATE_FORMAT("date.format"),
+	ERRORS_UNIQUE("errors.unique"),
+
+	COMPANY_REGISTERED("company.registered"),
+	COMPANY_ADDED("company.added"),
+	COMPANY_DELETED("company.deleted"),
+	COMPANY_UPDATED("company.updated"),
+
+	GROUP_ADDED("group.added"),
+	GROUP_DELETED("group.deleted"),
+	GROUP_NAME("group.name"),
+	GROUP_UPDATED("group.updated"),
+
+	EMAIL_SUBJECT_ACCOUNT_CREATED("email.subject.account.created"),
+	EMAIL_SUBJECT_PASSWORD_RENEWED("email.subject.password.renewed"),
+	
+	PROFILE_UPDATED("profile.updated"),
+	
+	SYSTEM_PARAMETER_ADDED("systemParameter.added"),
+	SYSTEM_PARAMETER_DELETED("systemParameter.deleted"),
+	SYSTEM_PARAMETER_PARAM_NAME("systemParameter.paramName"),
+	SYSTEM_PARAMETER_UPDATED("systemParameter.updated"),
+
+	INTRODUCTION_ADDED("introduction.added"),
+	INTRODUCTION_DELETED("introduction.deleted"),
+	INTRODUCTION_UPDATED("introduction.updated"),
+	
+	
+	SLIDER_ADDED("slider.added"),
+	SLIDER_DELETED("slider.deleted"),
+	SLIDER_UPDATED("slider.updated"),
+	SLIDER_NOT_EXIST("slider.not.exist"),
+	
+	BANNER_ADDED("banner.added"),
+	BANNER_DELETED("banner.deleted"),
+	BANNER_UPDATED("banner.updated"),
+	
+	MENU_ADDED("menu.added"),
+	MENU_DELETED("menu.deleted"),
+	MENU_DELETED_FAIL("menu.deleted.fail"),
+	MENU_UPDATED("menu.updated"),
+
+	USER_REGISTER_SUCCESS("user.register.success"),
+
+	CATEGORY_ADDED("category.added"), 
+	CATEGORY_UPDATED("category.updated"), 
+	CATEGORY_DELETED("category.deleted"),
+	CATEGORY_DELETED_FAIL("category.deleted.fail"),
+	CATEGORY_NOT_EXIST("category.not.exist"),
+
+	CONTACT_ADDED("contact.added"), 
+	CONTACT_UPDATED("contact.updated"), 
+	CONTACT_DELETED("contact.deleted"), 
+
+	PRODUCT_ADDED("product.added"), 
+	PRODUCT_UPDATED("product.updated"), 
+	PRODUCT_DELETED("product.deleted"),
+	PRODUCT_DELETED_ERROR("product.deleted.error"),
+	PRODUCT_DELETED_ERROR_NOTIFI("product.deleted.notifi"),
+	
+	REGISTER_ADDED("register.added"),
+	REGISTER_ERROR_EMAIL_NOTFOUND("register.error.email.notfound"),
+	REGISTER_ERROR_CUSTOMER_EXISTED("register.error.customer.existed"),
+	
+	REPOSITORY_ADDED("repository.added"), 
+	REPOSITORY_UPDATED("repository.updated"), 
+	REPOSITORY_DELETED("repository.deleted"),
+
+	SALE_ADDED("sale.added"), 
+	SALE_UPDATED("sale.updated"),
+	SALE_UPDATED_FAIL("sale.updated.fail"),
+	SALE_DELETED("sale.deleted"),
+	
+	AGENT_ADDED("agent.added"), 
+	AGENT_UPDATED("agent.updated"), 
+	AGENT_DELETED("agent.deleted"),
+	
+	ADDRESS_ADDED("address.added"), 
+	ADDRESS_UPDATED("account.address.updated"), 
+	ADDRESS_DELETED("address.deleted"),
+
+	ORDER_ADDED("order.added"), 
+	ORDER_UPDATED("order.updated"), 
+	ORDER_DELETED("order.deleted"),
+	
+	MY_ORDER_EXIST("order.exist"),
+	
+	TRANSACTION_ADDED("transaction.added");
+
+	public String key;
+
+	private MessageKeyEnum(String key) {
+		this.key = key;
+	}
+}

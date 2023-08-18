@@ -1,0 +1,80 @@
+package com.gg.gpos.user.manager;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import javax.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+import com.gg.gpos.user.dto.UserDetailsSecurity;
+import com.gg.gpos.user.entity.AppGroup;
+import com.gg.gpos.user.entity.AppUser;
+import com.gg.gpos.user.entity.Role;
+import com.gg.gpos.user.repository.AppUserRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class CustomUserDetailsService implements UserDetailsService {
+    @Autowired
+    private AppUserRepository appUserRepository;
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    	log.info("Entering 'loadUserByUsername' method...");
+    	AppUser user = appUserRepository.loadUserByUsername(username);
+        if(user != null) {
+            List<GrantedAuthority> authorities = getUserAuthority(user);
+            return buildUserForAuthentication(user, authorities);
+        } else {
+            throw new UsernameNotFoundException("username not found");
+        }
+    }
+
+    private List<GrantedAuthority> getUserAuthority(AppUser user) {
+    	log.info("Entering 'getUserAuthority' method...");
+    	// Use Set to remove duplicate
+        Set<GrantedAuthority> roles = new HashSet<>();
+        
+        List<Role> userRoles = user.getRoles();
+        if (userRoles != null && !userRoles.isEmpty()) {
+        	userRoles.stream().forEach(role -> roles.add(new SimpleGrantedAuthority(role.getName())));
+        }
+        
+        List<AppGroup> groups = user.getAppGroups();
+        if (groups != null && !groups.isEmpty()) {
+        	groups.stream().forEach(group -> {
+                List<Role> groupRoles = group.getRoles();
+                if (groupRoles != null && !groupRoles.isEmpty()) {
+                	groupRoles.stream().forEach(role -> roles.add(new SimpleGrantedAuthority(role.getName())));
+                }
+        	});
+        }
+        
+        List<GrantedAuthority> grantedAuthorities = new ArrayList<>(roles);
+        //log.debug("ROLES: " + grantedAuthorities);
+        return grantedAuthorities;
+    }
+
+    private UserDetails buildUserForAuthentication(AppUser user, List<GrantedAuthority> authorities) {
+        return new UserDetailsSecurity(user.getUsername(), user.getPassword(), user.isAccountEnabled(), authorities);
+    }
+
+    public boolean isFirstTimeAccess(String username) {
+    	AppUser appUser = appUserRepository.findByUsernameAndAccountEnabledIsTrueAndPasswordChangedDateIsNull(username);
+    	return appUser != null;
+    }
+    
+    public boolean isCheckEnable(String username) {
+    	AppUser appUser = appUserRepository.findByUsernameAndAccountEnabledIsFalse(username);
+    	return appUser != null;
+    }
+}

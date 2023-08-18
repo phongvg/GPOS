@@ -1,0 +1,11 @@
+package com.gg.gpos.user.criteria;
+
+import lombok.Data;
+
+@Data
+public class UserCriteria {
+    private String username;
+    private String fullname;
+    private Boolean enabled;
+    private Long groupId;
+}

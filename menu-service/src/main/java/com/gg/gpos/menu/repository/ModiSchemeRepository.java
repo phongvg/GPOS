@@ -1,0 +1,14 @@
+package com.gg.gpos.menu.repository;
+
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import com.gg.gpos.menu.entity.ModiScheme;
+
+@Repository
+public interface ModiSchemeRepository extends JpaRepository<ModiScheme, Long>,JpaSpecificationExecutor<ModiScheme>{
+	@Query("from ModiScheme ms where ms.status=3")
+	List<ModiScheme> findActives();
+}

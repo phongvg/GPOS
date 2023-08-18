@@ -1,0 +1,144 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+
+import com.gg.gpos.common.constant.FunctionTypeEnum;
+import com.gg.gpos.common.constant.ModuleTypeEnum;
+import com.gg.gpos.common.constant.SyncStatusEnum;
+import com.gg.gpos.common.constant.UploadImageEnum;
+import com.gg.gpos.common.json.FileContent;
+import com.gg.gpos.common.json.RestaurantMenuDataSync;
+import com.gg.gpos.reference.dto.AttachmentDto;
+import com.gg.gpos.reference.mapper.AttachmentMapper;
+import com.gg.gpos.reference.repository.AttachmentRepository;
+
+import lombok.extern.slf4j.Slf4j;
+@Slf4j
+@Service
+@Transactional
+public class SyncAttachmentFileManager {
+	@Autowired
+	private AttachmentRepository attachmentRepository;
+	@Autowired
+	private AttachmentMapper attachmentMapper;
+	
+	/*
+	 * Convert thông tin các ảnh chưa đồng bộ thành công
+	 */
+	public RestaurantMenuDataSync convertFileAttachmentToJosn(String apiUrl) {
+		log.debug("PROCESS: CONVERT FILE_ATTACHMENT TO JSON, API_URL: {}", apiUrl);
+		RestaurantMenuDataSync restaurantMenuDataSync = new RestaurantMenuDataSync();
+		List<FileContent> files = new ArrayList<>();
+		try {
+			List<AttachmentDto> attachmentDtos = attachmentRepository.findBySyncStatus(SyncStatusEnum.FAIL.val).stream().map(attachmentMapper::entityToDto).collect(Collectors.toList());
+			if(!CollectionUtils.isEmpty(attachmentDtos)) {
+				attachmentDtos.stream().forEach(i ->{
+					String moduleType = i.getModuleType();
+					String functionType = i.getFunctionType();
+					
+					FileContent file = new FileContent();
+	    			file.setAbsolutePath(i.getAbsolutePath());
+	    			file.setFileName(i.getFileName());
+	    			file.setResCode(i.getRestaurantCode());
+	    			file.setResName(i.getRestaurantName());
+	    			file.setApiUrl(apiUrl);
+					file.setAttachmentId(i.getId());
+					
+					switch (moduleType) {
+					case "co-food-item":
+						file.setFolder(UploadImageEnum.IMG_MENU_FOLDER.val);
+	    				file.setType(ModuleTypeEnum.CO_FOOD_ITEM.val);	
+	    				files.add(file);
+						break;
+					case "co-category":
+						if(functionType.equals(FunctionTypeEnum.VIDEO_ABOUTUS_MENU.val) || i.getFunctionType().equals(FunctionTypeEnum.VIDEO_ABOUTUS_RES.val)) {
+							file.setFolder(UploadImageEnum.VIDEO_CATEGORY_FOLDER.val);
+						} else {
+							file.setFolder( UploadImageEnum.IMG_CATEGORY_FOLDER.val);
+						}
+						file.setType(ModuleTypeEnum.CO_CATEGORY.val);
+						files.add(file);
+						break;
+					case "food-group":
+						file.setFolder(UploadImageEnum.IMG_MENU_FOLDER.val);
+	    				file.setType(ModuleTypeEnum.FOOD_GROUP.val); 
+	    				files.add(file);
+						break;
+					default:
+						break;
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS: CONVERT FILE_ATTACHMENT TO JSON, EXCEPTION: {}", e);
+		}
+		restaurantMenuDataSync.setFileContents(files);
+		return restaurantMenuDataSync;
+	}
+	
+	
+	/*
+	 * Convert thông tin các ảnh chưa đồng bộ thành công
+	 */
+	public RestaurantMenuDataSync convertFileAttachmentToJosn(Integer restaurantCode, String apiUrl) {
+		log.debug("PROCESS: CONVERT FILE_ATTACHMENT TO JSON, RESTAURANT_CODE: {}, API_URL: {}", restaurantCode, apiUrl);
+		
+		RestaurantMenuDataSync restaurantMenuDataSync = new RestaurantMenuDataSync();
+		restaurantMenuDataSync.setResCode(String.valueOf(restaurantCode));
+		List<FileContent> files = new ArrayList<>();
+		try {
+			List<AttachmentDto> attachmentDtos = attachmentRepository.findByRestaurantCodeAndSyncStatus(restaurantCode, SyncStatusEnum.FAIL.val).stream().map(attachmentMapper::entityToDto).collect(Collectors.toList());
+			if(attachmentDtos != null && !attachmentDtos.isEmpty()) {
+				attachmentDtos.stream().forEach(i ->{
+					String moduleType = i.getModuleType();
+					String functionType = i.getFunctionType();
+					
+					FileContent file = new FileContent();
+	    			file.setAbsolutePath(i.getAbsolutePath());
+	    			file.setFileName(i.getFileName());
+	    			file.setResCode(i.getRestaurantCode());
+	    			file.setResName(i.getRestaurantName());
+	    			file.setApiUrl(apiUrl);
+					file.setAttachmentId(i.getId());
+					
+					switch (moduleType) {
+					case "co-food-item":
+						file.setFolder(UploadImageEnum.IMG_MENU_FOLDER.val);
+	    				file.setType(ModuleTypeEnum.CO_FOOD_ITEM.val);	
+	    				files.add(file);
+						break;
+					case "co-category":
+						if(functionType.equals(FunctionTypeEnum.VIDEO_ABOUTUS_MENU.val) || i.getFunctionType().equals(FunctionTypeEnum.VIDEO_ABOUTUS_RES.val)) {
+							file.setFolder(UploadImageEnum.VIDEO_CATEGORY_FOLDER.val);
+						} else {
+							file.setFolder( UploadImageEnum.IMG_CATEGORY_FOLDER.val);
+						}
+						file.setType(ModuleTypeEnum.CO_CATEGORY.val);
+						files.add(file);
+						break;
+					case "food-group":
+						file.setFolder(UploadImageEnum.IMG_MENU_FOLDER.val);
+	    				file.setType(ModuleTypeEnum.FOOD_GROUP.val); 
+	    				files.add(file);
+						break;
+					default:
+						break;
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS: CONVERT FILE_ATTACHMENT TO JSON, EXCEPTION: {}", e);
+		}
+		// set FileContent
+		restaurantMenuDataSync.setFileContents(files);
+		return restaurantMenuDataSync;
+	}
+}

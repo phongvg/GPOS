@@ -1,0 +1,14 @@
+jdbcSettings:
+  url: "jdbc:mysql://localhost/gadmin"
+  username: "gadmin"
+  password: "gadmin@123"
+  driverClassName: "com.mysql.cj.jdbc.Driver"
+
+entityPackageName: "com.gg.gpos.res.entity"
+repositoryPackageName: "com.gg.gpos.res.repository"
+managerPackageName: "com.gg.gpos.res.manager"
+controllerPackageName: "com.gg.gpos.res.controller"
+
+tableScanMode: 'RuleBased'
+tableScanRules:
+  - tableNames: ["brand","zone","restaurant","area","kitchen","print_group","print_group_food"]

@@ -1,0 +1,14 @@
+jdbcSettings:
+  url: "jdbc:mysql://localhost/gadmin"
+  username: "gadmin"
+  password: "gadmin@123"
+  driverClassName: "com.mysql.cj.jdbc.Driver"
+
+entityPackageName: "com.gg.gpos.reference.entity"
+repositoryPackageName: "com.gg.gpos.reference.repository"
+managerPackageName: "com.gg.gpos.reference.manager"
+controllerPackageName: "com.gg.gpos.reference.controller"
+
+tableScanMode: 'RuleBased'
+tableScanRules:
+  - tableNames: ["system_parameter","attachment","city","district"]

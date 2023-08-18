@@ -1,0 +1,194 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+
+import com.gg.gpos.common.constant.SymbolEnum;
+import com.gg.gpos.io.dto.IOKdsAccountDto;
+import com.gg.gpos.menu.dto.KdsAccountDto;
+import com.gg.gpos.menu.dto.KdsPlaceDto;
+import com.gg.gpos.menu.entity.KdsAccount;
+import com.gg.gpos.menu.entity.KdsPlace;
+import com.gg.gpos.menu.mapper.KdsAccountMapper;
+import com.gg.gpos.menu.mapper.KdsPlaceMapper;
+import com.gg.gpos.menu.repository.KdsAccountRepository;
+import com.gg.gpos.menu.repository.KdsPlaceRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class KdsAccountManager {
+
+	@Autowired
+	private KdsAccountRepository kdsAccountRepository;
+	@Autowired
+	private KdsAccountMapper kdsAccountMapper;
+	@Autowired
+	private KdsPlaceRepository kdsPlaceRepository;
+	@Autowired
+	private KdsPlaceMapper kdsPlaceMapper;
+	
+	public Page<KdsAccountDto> gets(KdsAccountDto criteria){
+		log.debug("Entering 'gets(criteria)' method...");
+		Page<KdsAccount> page = kdsAccountRepository.findByRestaurantCode(criteria.getRestaurantCode(), PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(kdsAccountMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+	
+	public KdsAccountDto get(Long id) {
+		return kdsAccountRepository.findById(id).map(kdsAccountMapper::entityToDto).orElse(null);
+	}
+	
+	public KdsAccountDto getByResCodeAndAccountName(Integer resCode, String accountName) {
+		return Optional.ofNullable(kdsAccountRepository.findByRestaurantCodeAndAccountName(resCode, accountName)).map(kdsAccountMapper::entityToDto).orElse(null);
+	}
+	
+	public List<KdsAccountDto> gets(Integer resCode) {
+		return kdsAccountRepository.findByRestaurantCode(resCode).stream().map(kdsAccountMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public KdsAccountDto saveKdsAccount(KdsAccountDto kdsAccountDto) {
+		log.debug("Entering 'save' method...");
+		KdsAccount kdsAccount = Optional.ofNullable(kdsAccountDto).map(kdsAccountMapper::dtoToEntity).orElse(null);
+		if (kdsAccount != null) {
+			return Optional.ofNullable(kdsAccountRepository.save(kdsAccount)).map(kdsAccountMapper::entityToDto).orElse(null);
+		} else {
+			return null;
+		}
+	}
+	
+	public KdsAccountDto save(KdsAccountDto kdsAccountDto) {
+		log.debug("entering 'save' method...");
+	    List<Long> kdsPlaceIds = new ArrayList<>();
+	    List<KdsPlace> kdsPlaces = null;
+    	if(kdsAccountDto.getKdsPlaceIds() != null && !kdsAccountDto.getKdsPlaceIds().isEmpty()) {
+	    	Set<String> kdsPlace = org.springframework.util.StringUtils.commaDelimitedListToSet(kdsAccountDto.getKdsPlaceIds());
+	    	List<String> kdsPlaceIdsKey = kdsPlace.stream().filter(key -> {
+	    		return !key.contains(SymbolEnum.COMMA.val);
+	    	}).collect(Collectors.toList());
+	    	kdsPlaceIdsKey.stream().forEach(f ->{
+	    		kdsPlaceIds.add(Long.parseLong(f));
+	    	});
+    	}
+    	
+		if(!kdsPlaceIds.isEmpty()) {
+			kdsPlaces = kdsPlaceIds.stream().map(mId -> kdsPlaceRepository.getOne(mId)).collect(Collectors.toList());
+		}
+		
+		KdsAccount kdsAccount = Optional.ofNullable(kdsAccountDto).map(kdsAccountMapper::dtoToEntity).orElse(null);
+		if (kdsAccount != null) {
+			kdsAccount.setKdsPlaces(kdsPlaces);
+			if (kdsAccountDto.getParent() != null && kdsAccountDto.getParent().getId() == null) {
+				kdsAccount.setParent(null);
+			}
+			KdsAccount c = kdsAccountRepository.save(kdsAccount);
+			return Optional.ofNullable(c).map(kdsAccountMapper::entityToDto).orElse(null);
+		} else {
+			return null;	
+		}
+	}
+	
+	/*
+	 * lấy dữ liệu KDS_ACCOUNT theo RESTAURANT_CODE để export
+	 */
+	public List<IOKdsAccountDto> getIOKdsAccountsByRestaurantCode(Integer restaurantCode) {
+		log.debug("PROCESS: GET IO_KDS_ACCOUNT BY RESTAURANT_CODE, RESTAURANT_CODE: {}", restaurantCode);
+		List<IOKdsAccountDto> ioKdsAccountDtos = new ArrayList<>();
+		List<KdsAccountDto> kdsAccountDtos = kdsAccountRepository.findByRestaurantCode(restaurantCode).stream().map(kdsAccountMapper::entityToDto).collect(Collectors.toList());
+		if(!CollectionUtils.isEmpty(kdsAccountDtos)) {
+			kdsAccountDtos.stream().forEach(item ->{
+				IOKdsAccountDto ioKdsAccountDto = new IOKdsAccountDto();
+				BeanUtils.copyProperties(item, ioKdsAccountDto);
+				ioKdsAccountDto.setStatus(true);
+				ioKdsAccountDto.setRole(new Double(item.getRole()));
+				List<KdsPlaceDto> kdsPlaceDtos = item.getKdsPlaces();
+				if(!CollectionUtils.isEmpty(kdsPlaceDtos)) {
+					StringBuilder builder = new StringBuilder();
+					kdsPlaceDtos.stream().forEach(kdsPlace ->{
+						builder.append(kdsPlace.getCode()).append(SymbolEnum.COMMA.val);
+					});
+					ioKdsAccountDto.setKdsPlaceCodes(builder.substring(0, builder.length()-1));
+				}
+				if(item.getParent() != null) {
+					ioKdsAccountDto.setParentAccountName(item.getParent().getAccountName());
+				}
+				ioKdsAccountDtos.add(ioKdsAccountDto);
+			});
+		}
+		return ioKdsAccountDtos;
+	}
+	
+	public List<IOKdsAccountDto> importKdsAccount(List<IOKdsAccountDto> ioKdsAccountDtos, Integer restaurantCode) {
+		log.debug("PROCESS: IMPORT KDS_ACCOUNT, IO_KDS_ACCOUNT: {}, RESTAURANT_CODE: {}",ioKdsAccountDtos, restaurantCode);
+		List<IOKdsAccountDto> ioKdsAccountErrs = new ArrayList<>();
+		// lọc các bản ghi không có nhóm cha 
+		List<IOKdsAccountDto> ioKdsAccountNoParents = ioKdsAccountDtos.stream().filter(item -> StringUtils.isBlank(item.getParentAccountName())).collect(Collectors.toList());
+		// lọc các bản ghi có nhóm cha
+		List<IOKdsAccountDto> ioKdsAccountHasParents = ioKdsAccountDtos.stream().filter(item -> StringUtils.isNotBlank(item.getParentAccountName())).collect(Collectors.toList());
+		ioKdsAccountErrs.addAll(processImportKdsAccount(ioKdsAccountNoParents, restaurantCode, false));
+		ioKdsAccountErrs.addAll(processImportKdsAccount(ioKdsAccountHasParents, restaurantCode, true));
+		return ioKdsAccountErrs;
+	}
+	
+	private List<IOKdsAccountDto> processImportKdsAccount (List<IOKdsAccountDto> ioKdsAccountDtos, Integer restaurantCode, Boolean isHasParent) {
+		List<IOKdsAccountDto> ioKdsAccountErrs = new ArrayList<>();
+		if(!CollectionUtils.isEmpty(ioKdsAccountDtos)) {
+			ioKdsAccountDtos.stream().forEach(item ->{
+				// Loại bỏ các bản ghi bị lỗi không đọc được từ file excel
+				if(item.getError() != null && !item.getError().isEmpty()) {
+					item.setStatus(false);
+					ioKdsAccountErrs.add(item);
+				} else {
+					// Các trường hợp không bị lỗi khi đọc file excel
+					try {
+						// Kiểm tra xem có bản ghi nào tồn tại với AccountName và RestaurantCode không
+						KdsAccountDto kdsAccountExistingDto = Optional.ofNullable(kdsAccountRepository.findByRestaurantCodeAndAccountName(restaurantCode, item.getAccountName())).map(kdsAccountMapper::entityToDto).orElse(null);
+						if(kdsAccountExistingDto == null) {
+							kdsAccountExistingDto = new KdsAccountDto();
+						}
+						BeanUtils.copyProperties(item, kdsAccountExistingDto);
+						if(item.getRole() != null) {
+							kdsAccountExistingDto.setRole((int) Math.round(item.getRole()));
+						} else {
+							kdsAccountExistingDto.setRole(0);
+						}
+						if(StringUtils.isNotBlank(item.getKdsPlaceCodes())) {
+							Set<String> kdsPlaceCodes = org.springframework.util.StringUtils.commaDelimitedListToSet(item.getKdsPlaceCodes());
+							List<KdsPlaceDto> kdsPlaceDtos = kdsPlaceRepository.findByCodesAndRestaurantCode(kdsPlaceCodes, restaurantCode).stream().map(kdsPlaceMapper::entityToDto).collect(Collectors.toList());
+							kdsAccountExistingDto.setKdsPlaces(kdsPlaceDtos);
+						}
+						if(isHasParent) {
+							KdsAccountDto kdsAccountParentExistingDto = Optional.ofNullable(kdsAccountRepository.findByRestaurantCodeAndAccountName(restaurantCode, item.getParentAccountName())).map(kdsAccountMapper::entityToDto).orElse(null);
+							if(kdsAccountParentExistingDto != null) {
+								kdsAccountExistingDto.setParent(kdsAccountExistingDto);
+							}
+						}
+						KdsAccount kdsAccount = Optional.ofNullable(kdsAccountExistingDto).map(kdsAccountMapper::dtoToEntity).orElse(null);
+						kdsAccountRepository.save(kdsAccount);
+					} catch (Exception e) {
+						log.error("ERROR: IMPORT KDS_ACCOUNT EXCEPTION, EXCEPTION: {}", e);
+						item.setError(e.toString());
+						item.setStatus(false);
+						ioKdsAccountErrs.add(item);
+					}
+				}
+			});
+		}
+		return ioKdsAccountErrs;
+	}
+}

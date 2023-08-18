@@ -1,0 +1,14 @@
+package com.gg.gpos.menu.repository;
+
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import com.gg.gpos.menu.entity.GuestType;
+
+@Repository
+public interface GuestTypeRepository extends JpaRepository<GuestType, Long>, JpaSpecificationExecutor<GuestType> {
+	@Query("from GuestType gt where gt.status=3")
+	List<GuestType> findActives();
+}

@@ -1,0 +1,75 @@
+package com.gg.gpos.menu.dto;
+
+public class IKdsConfigCookingDto {
+	private String foodItemCode;
+	private Double singleCookingTime;
+	private Double multiCookingTime;
+	private String fasting;
+	private String kdsPlaceCode;
+	private String groupTypeKdsCode;
+	private String groupTypeKdsName;
+	private String foodItemName;
+	private String error;
+	private boolean status;
+	public String getError() {
+		return error;
+	}
+	public void setError(String error) {
+		this.error = error;
+	}
+	public boolean isStatus() {
+		return status;
+	}
+	public void setStatus(boolean status) {
+		this.status = status;
+	}
+	public String getFoodItemCode() {
+		return foodItemCode;
+	}
+	public void setFoodItemCode(String foodItemCode) {
+		this.foodItemCode = foodItemCode;
+	}
+	public Double getSingleCookingTime() {
+		return singleCookingTime;
+	}
+	public void setSingleCookingTime(Double singleCookingTime) {
+		this.singleCookingTime = singleCookingTime;
+	}
+	public Double getMultiCookingTime() {
+		return multiCookingTime;
+	}
+	public void setMultiCookingTime(Double multiCookingTime) {
+		this.multiCookingTime = multiCookingTime;
+	}
+	public String getFasting() {
+		return fasting;
+	}
+	public void setFasting(String fasting) {
+		this.fasting = fasting;
+	}
+	public String getKdsPlaceCode() {
+		return kdsPlaceCode;
+	}
+	public void setKdsPlaceCode(String kdsPlaceCode) {
+		this.kdsPlaceCode = kdsPlaceCode;
+	}
+	public String getGroupTypeKdsCode() {
+		return groupTypeKdsCode;
+	}
+	public void setGroupTypeKdsCode(String groupTypeKdsCode) {
+		this.groupTypeKdsCode = groupTypeKdsCode;
+	}
+	public String getGroupTypeKdsName() {
+		return groupTypeKdsName;
+	}
+	public void setGroupTypeKdsName(String groupTypeKdsName) {
+		this.groupTypeKdsName = groupTypeKdsName;
+	}
+	public String getFoodItemName() {
+		return foodItemName;
+	}
+	public void setFoodItemName(String foodItemName) {
+		this.foodItemName = foodItemName;
+	}
+	
+}

@@ -1,0 +1,62 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+
+import com.gg.gpos.menu.dto.TableKitchenDto;
+import com.gg.gpos.menu.entity.TableKitchen;
+import com.gg.gpos.menu.mapper.TableKitchenMapper;
+import com.gg.gpos.menu.repository.TableKitchenRepository;
+import com.gg.gpos.menu.specification.ReferenceSpecification;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class TableKitchenManager {
+	@Autowired
+	private TableKitchenRepository tableKitchenRepository;
+	@Autowired
+	private TableKitchenMapper tableKitchenMapper;
+	@Autowired
+	private ReferenceSpecification<TableKitchen> referenceSpecification;
+
+	public TableKitchenDto get(Long id) {
+		return tableKitchenRepository.findById(id).map(tableKitchenMapper::entityToDto).orElse(null);
+	}
+	
+	public Page<TableKitchenDto> gets(TableKitchenDto criteria) {
+		log.debug("PROCESS: GETS TABLE_KITCHEN,  TABLE_KITCHEN_DTO: {}", criteria);
+		Specification<TableKitchen> spec = Specification.where(referenceSpecification.search(criteria.getCode(), criteria.getName(), criteria.getStatus()));
+		Page<TableKitchen> page = tableKitchenRepository.findAll(spec, PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(tableKitchenMapper::entityToDto).collect(Collectors.toList()), PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+	
+	public void save(List<TableKitchenDto> tableKitchenDtos) {
+		log.debug("PROCESS: SAVE TABLE_KITCHEN,  TABLE_KITCHEN_DTOS: {}", tableKitchenDtos);
+		if (!tableKitchenDtos.isEmpty()) {
+			tableKitchenDtos.stream().forEach(t -> {
+				TableKitchen table = Optional.ofNullable(t).map(tableKitchenMapper::dtoToEntity).orElse(null);
+				if (table != null) {
+					tableKitchenRepository.save(table);
+				}
+			});
+		}
+	}
+	
+	public List<TableKitchenDto> getByHallPlanId(Integer hallPlanId){
+		log.debug("PROCESS: GETS TABLE_KITCHEN BY HALLPLAN_ID,  HALLPLAN_ID: {}", hallPlanId);
+		return tableKitchenRepository.findByHallplanId(hallPlanId).stream().map(tableKitchenMapper::entityToDto).collect(Collectors.toList());
+	}
+}

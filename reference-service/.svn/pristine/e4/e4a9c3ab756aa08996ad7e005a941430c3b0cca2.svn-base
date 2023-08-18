@@ -1,0 +1,79 @@
+package com.gg.gpos.reference.manager;
+
+import java.util.List;
+import java.util.Optional;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.gg.gpos.reference.dto.SurveyDetailDto;
+import com.gg.gpos.reference.dto.SurveyDto;
+import com.gg.gpos.reference.entity.Survey;
+import com.gg.gpos.reference.entity.SurveyDetail;
+import com.gg.gpos.reference.mapper.SurveyMapper;
+import com.gg.gpos.reference.repository.SurveyDetailRepository;
+import com.gg.gpos.reference.repository.SurveyRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class SurveyManager {
+
+	@Autowired
+	private SurveyRepository surveyRepository;
+	
+	@Autowired
+	private SurveyMapper surveyMapper;
+	
+	@Autowired
+	private SurveyDetailRepository surveyDetailRepository;
+	
+	public SurveyDto save(SurveyDto surveyDto) {
+		log.debug("Entering 'save' method...");
+		Survey survey = surveyRepository.findByOrderCode(surveyDto.getOrderCode());
+		if(survey != null) {
+			surveyDetailRepository.deleteBySurvey(survey);
+			survey.setRestaurantCode(surveyDto.getRestaurantCode());
+			survey.setRestaurantName(surveyDto.getRestaurantName());
+			survey.setStaffCode(surveyDto.getStaffCode());
+			survey.setIsSurvey(surveyDto.getIsSurvey());
+			Survey savedSurvey = surveyRepository.save(survey);
+			surveyDetailRepository.deleteBySurvey(savedSurvey);
+			List<SurveyDetailDto> surveyDetails = surveyDto.getSurveyDetails();
+			if(surveyDetails != null && !surveyDetails.isEmpty()) {
+				surveyDetails.stream().forEach(item ->{
+					SurveyDetail surveyDetail = new SurveyDetail();
+					surveyDetail.setSurvey(savedSurvey);
+					surveyDetail.setAnswerId(item.getAnswerId());
+					surveyDetail.setAnswerName(item.getAnswerName());
+					surveyDetail.setQuestionId(item.getQuestionId());
+					surveyDetail.setQuestionName(item.getQuestionName());
+					surveyDetailRepository.save(surveyDetail);
+				});
+			}
+			return Optional.ofNullable(savedSurvey).map(surveyMapper::entityToDto).orElse(null);
+			
+		} else {
+			survey = Optional.ofNullable(surveyDto).map(surveyMapper::dtoToEntity).orElse(null);
+			Survey savedSurvey = surveyRepository.save(survey);
+			List<SurveyDetail> surveyDetails = survey.getSurveyDetails();
+			if(surveyDetails != null && !surveyDetails.isEmpty()) {
+				surveyDetails.stream().forEach(item ->{
+					SurveyDetail surveyDetail = new SurveyDetail();
+					surveyDetail.setSurvey(savedSurvey);
+					surveyDetail.setAnswerId(item.getAnswerId());
+					surveyDetail.setAnswerName(item.getAnswerName());
+					surveyDetail.setQuestionId(item.getQuestionId());
+					surveyDetail.setQuestionName(item.getQuestionName());
+					surveyDetailRepository.save(surveyDetail);
+				});
+			}
+			return Optional.ofNullable(savedSurvey).map(surveyMapper::entityToDto).orElse(null);
+		}
+		
+	}
+}

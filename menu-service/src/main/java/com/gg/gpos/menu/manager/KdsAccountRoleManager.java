@@ -1,0 +1,28 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import javax.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import com.gg.gpos.menu.dto.KdsAccountRoleDto;
+import com.gg.gpos.menu.mapper.KdsAccountRoleMapper;
+import com.gg.gpos.menu.repository.KdsAccountRoleRepository;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class KdsAccountRoleManager {
+	
+	@Autowired
+	private KdsAccountRoleRepository kdsAccountRoleRepository;
+	@Autowired
+	private KdsAccountRoleMapper kdsAccountRoleMapper;
+
+	public List<KdsAccountRoleDto> gets() {
+		log.debug("Entering 'gets()' method...");
+		return kdsAccountRoleRepository.findAll().stream().map(kdsAccountRoleMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+}

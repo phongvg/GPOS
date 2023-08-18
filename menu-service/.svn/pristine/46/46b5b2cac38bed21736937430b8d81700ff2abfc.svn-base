@@ -1,0 +1,58 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+
+import com.gg.gpos.menu.dto.OrderTypeDto;
+import com.gg.gpos.menu.entity.OrderType;
+import com.gg.gpos.menu.mapper.OrderTypeMapper;
+import com.gg.gpos.menu.repository.OrderTypeRepository;
+import com.gg.gpos.menu.specification.ReferenceObjectSpecification;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class OrderTypeManager {
+	@Autowired
+	private OrderTypeRepository orderTypeRepository;
+	@Autowired
+	private OrderTypeMapper orderTypeMapper;
+	@Autowired
+	private ReferenceObjectSpecification<OrderType> referenceObjectSpecification;
+	
+	public OrderTypeDto get(Long id) {
+		return orderTypeRepository.findById(id).map(orderTypeMapper::entityToDto).orElse(null);
+	}
+	
+	public void save(List<OrderTypeDto> orderTypeDtos) {
+		log.debug("PROCESS: SAVE ORDER_TYPES, ORDER_TYPE_DTOS: {}", orderTypeDtos);
+		if (!orderTypeDtos.isEmpty()) {
+			orderTypeDtos.stream().forEach(ot -> {
+				OrderType orderType = Optional.ofNullable(ot).map(orderTypeMapper::dtoToEntity).orElse(null);
+				if (orderType != null)
+					orderTypeRepository.save(orderType);
+			});
+		}
+	}
+	
+	public Page<OrderTypeDto> gets(OrderTypeDto criteria) {
+		log.debug("PROCESS: GETS ORDER_TYPE, ORDER_TYPE_DTO: {}", criteria);
+		Specification<OrderType> spec = Specification.where(referenceObjectSpecification.search(criteria.getCode(), criteria.getName(), criteria.getStatus()));
+		Page<OrderType> page = orderTypeRepository.findAll(spec, PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(orderTypeMapper::entityToDto).collect(Collectors.toList()), PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+	
+
+}

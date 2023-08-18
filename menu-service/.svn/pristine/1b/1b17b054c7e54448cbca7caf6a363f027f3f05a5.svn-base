@@ -1,0 +1,12 @@
+package com.gg.gpos.menu.criteria;
+
+import lombok.Data;
+
+@Data
+public class FeatureCriteria {
+	private String type;
+	private String code;
+	private String nameEn;
+	private String nameVn;
+	private boolean status;
+}

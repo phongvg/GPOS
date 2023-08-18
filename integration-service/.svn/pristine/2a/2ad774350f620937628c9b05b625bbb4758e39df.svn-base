@@ -1,0 +1,164 @@
+//package com.gg.gpos.integration.jms;
+//
+//import static com.gg.gpos.integration.config.JMSConfig.QUEUE_SEND_FILE;
+//
+//import java.io.IOException;
+//import java.nio.charset.StandardCharsets;
+//import java.nio.file.Files;
+//import java.nio.file.Path;
+//import java.nio.file.Paths;
+//import java.util.ArrayList;
+//import java.util.Collections;
+//import java.util.List;
+//
+//import org.apache.commons.lang3.StringUtils;
+//import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.http.HttpEntity;
+//import org.springframework.http.HttpHeaders;
+//import org.springframework.http.HttpMethod;
+//import org.springframework.http.HttpStatus;
+//import org.springframework.http.MediaType;
+//import org.springframework.http.ResponseEntity;
+//import org.springframework.jms.annotation.JmsListener;
+//import org.springframework.stereotype.Component;
+//import org.springframework.web.client.RestTemplate;
+//
+//import com.gg.gpos.common.constant.HeaderEnum;
+//import com.gg.gpos.common.constant.ModuleTypeEnum;
+//import com.gg.gpos.common.constant.PhotoPushResultEnum;
+//import com.gg.gpos.common.constant.SymbolEnum;
+//import com.gg.gpos.common.constant.SyncStatusEnum;
+//import com.gg.gpos.common.constant.TypeDataEnum;
+//import com.gg.gpos.common.constant.TypeSyncEnum;
+//import com.gg.gpos.common.json.FileContent;
+//import com.gg.gpos.common.json.SyncResponse;
+//import com.gg.gpos.integration.manager.SyncArchiveManager;
+//import com.gg.gpos.integration.manager.SyncManager;
+//import com.gg.gpos.reference.entity.Attachment;
+//import com.gg.gpos.reference.manager.AttachmentManager;
+//
+//import lombok.extern.slf4j.Slf4j;
+//
+//@Slf4j
+//@Component
+//public class MessageReceiver {
+//	@Autowired
+//	private SyncManager syncManager;
+//	@Autowired
+//	private SyncArchiveManager syncArchiveManager;
+//	@Autowired
+//	private AttachmentManager attachmentManager;
+//	
+//	
+//	@JmsListener(destination = QUEUE_SEND_FILE)
+//    public void listener(final List<FileContent> files){
+//    	log.info("Entering listener() ...");
+//    	
+//    	List<String> categoryCodeFails = new ArrayList<String>();
+//    	List<String> foodItemCodeFails = new ArrayList<String>();
+//    	List<String> foodGroupCodeFails = new ArrayList<String>();
+//    	
+//    	Integer count = 1;
+//    	Integer countSuccess = 0;
+//    	Integer size = files.size();
+//    	Integer resCode = 0;
+//        RestTemplate restTemplate = new RestTemplate();
+//        String resName = "";
+//        
+//        for(FileContent f : files) {
+//        	boolean isValidFile = true;
+//        	String code = f.getCode();
+//        	String type = f.getType();
+//        	resCode = f.getResCode();
+//        	resName = f.getResName();
+//        	try {
+//        		if (StringUtils.isNotBlank(f.getAbsolutePath())) {
+//    	            Path path = Paths.get(f.getAbsolutePath());
+//    	            if (Files.exists(path)) {
+//        	            byte[] data = Files.readAllBytes(path);
+//        	        	f.setFile(data);
+//    	            } else {
+//    	            	isValidFile = false;
+//    	            	if(type.equals(ModuleTypeEnum.CO_CATEGORY.val)) {
+//    	            		categoryCodeFails.add(code);
+//    	            	} else if(type.equals(ModuleTypeEnum.CO_FOOD_ITEM.val)) {
+//    	            		foodItemCodeFails.add(code);
+//    	            	} else {
+//    	            		foodGroupCodeFails.add(code);
+//    	            	}
+//    	            	attachmentManager.saveAttachmentAfterSync(f.getAttachmentId(), resCode, SyncStatusEnum.FAIL.val,code,resName);
+//    	            }
+//        		} else {
+//        			isValidFile = false;
+//        			attachmentManager.saveAttachmentAfterSync(f.getAttachmentId(), resCode, SyncStatusEnum.FAIL.val,code,resName);
+//        			if(type.equals(ModuleTypeEnum.CO_CATEGORY.val)) {
+//	            		categoryCodeFails.add(code);
+//	            	} else if(type.equals(ModuleTypeEnum.CO_FOOD_ITEM.val)) {
+//	            		foodItemCodeFails.add(code);
+//	            	} else {
+//	            		foodGroupCodeFails.add(code);
+//	            	}
+//        		}
+//			} catch (IOException e) {
+//				isValidFile = false;
+//				attachmentManager.saveAttachmentAfterSync(f.getAttachmentId(), resCode, SyncStatusEnum.FAIL.val,code,resName);
+//				log.error(e.getMessage());
+//			}
+//        	
+//        	if (isValidFile) {
+//            	try {
+//        			// create headers
+//            		log.info("Entering sendFile() method...");
+//            		log.debug("=> URL: " + f.getApiUrl());
+//            		log.debug("=> JSON-DATA: " + f.jsonLog());
+//        			HttpHeaders headers = new HttpHeaders();
+//        			headers.setContentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8));
+//        			headers.setAccept(Collections.singletonList(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)));
+//        			headers.add(HeaderEnum.KEY_RES_CODE.getKey(), resCode.toString());
+//        			HttpEntity<?> requestEntity = new HttpEntity<>(f.toJsonString(), headers);
+//        			
+//        			ResponseEntity<SyncResponse> response = restTemplate.exchange(f.getApiUrl(), HttpMethod.POST, requestEntity, SyncResponse.class);
+//        			SyncResponse syncResponse = response.getBody();
+//        			if (!String.valueOf(HttpStatus.OK.value()).equals(syncResponse.getCode())) {
+//        				if(type.equals(ModuleTypeEnum.CO_CATEGORY.val)) {
+//    	            		categoryCodeFails.add(code);
+//    	            	} else if(type.equals(ModuleTypeEnum.CO_FOOD_ITEM.val)) {
+//    	            		foodItemCodeFails.add(code);
+//    	            	} else {
+//    	            		foodGroupCodeFails.add(code);
+//    	            	}
+//        				attachmentManager.saveAttachmentAfterSync(f.getAttachmentId(), resCode, SyncStatusEnum.FAIL.val,code,resName);
+//        			} else {
+//        				attachmentManager.saveAttachmentAfterSync(f.getAttachmentId(), resCode, SyncStatusEnum.SUCCESS.val,code,resName);
+//        				countSuccess++;
+//        			}
+//        			
+//            	} catch(Exception e) {
+//            		log.error("ERROR: ", e);
+//            	}
+//        	}
+//        	// save sync
+//        	String resultSyncFile = resultSync(size,count, categoryCodeFails, foodItemCodeFails, foodGroupCodeFails, false);
+//        	syncManager.saveResult(resCode,resName,TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.FILE_DATA.val, SyncStatusEnum.INPROCESSING.val, resultSyncFile);
+//        	count++;
+//        }
+//        // save syncArchive after sync
+//        String resultSyncFile = resultSync(size,countSuccess, categoryCodeFails, foodItemCodeFails, foodGroupCodeFails, true);
+//        syncArchiveManager.updateAfterSyncData(resCode,resName, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.FILE_DATA.val, SyncStatusEnum.SUCCESS.val, resultSyncFile);
+//        //delete sync
+//        syncManager.deleteSync(resCode, TypeSyncEnum.SYNC_TO_RESTAURANT.val, TypeDataEnum.FILE_DATA.val, SyncStatusEnum.INPROCESSING.val);
+//    }
+//	
+//	private String resultSync(Integer size,Integer count,List<String> categoryCodes, List<String> foodItemCodes, List<String> foodGroupCodes, boolean isFinish) {
+//		StringBuilder builder = new StringBuilder();
+//		if(isFinish) {
+//			builder.append(PhotoPushResultEnum.PHOTO_PUSH_RESULT.val).append(count).append(SymbolEnum.SLASH.val).append(size).append(SymbolEnum.SPACE.val).append(SymbolEnum.BRACKETS_LEFT.val).append(categoryCodes.size()).append(PhotoPushResultEnum.CATEOGRY.val);
+//			builder.append(categoryCodes).append(SymbolEnum.COMMA.val).append(SymbolEnum.SPACE.val).append(foodItemCodes.size()).append(PhotoPushResultEnum.CO_FOODITEM.val).append(foodItemCodes);
+//			builder.append(SymbolEnum.COMMA.val).append(SymbolEnum.SPACE.val).append(foodGroupCodes.size()).append(PhotoPushResultEnum.FOOD_GROUP.val).append(foodGroupCodes).append(SymbolEnum.BRACKETS_RIGHT.val);
+//		} else {
+//			builder.append(PhotoPushResultEnum.PHOTO_PUSH_PROCESS.val).append(count).append(SymbolEnum.SLASH.val).append(size);
+//		}
+//		return builder.toString();
+//	}
+//	
+//}

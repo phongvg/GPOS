@@ -1,0 +1,27 @@
+/*
+ * Copyright 2018. All rights reserved.
+ * This software is the confidential and proprietary information
+ * of GG ("Confidential Information").
+ * You shall not disclose such Confidential Information and shall
+ * use it only in accordance with the terms of the license agreement
+ * you entered into with GG.
+ */
+package com.gg.gpos.common.constant;
+
+/**
+ * The Enum JobDataKeyEnum.
+ *
+ * @author <a href="mailto:ngtrungkien@gmail.com">Kien Nguyen</a>
+ */
+public enum JobDataKeyEnum {
+	JOB_GROUP_SAMPLE("JOB_GROUP_SAMPLE"),
+	SERVICE_AUTH("serviceAuth"),
+	VOLUME("volume"),
+	STATION_ID("stationId");
+
+	public String key;
+
+	private JobDataKeyEnum(String key) {
+		this.key = key;
+	}
+}

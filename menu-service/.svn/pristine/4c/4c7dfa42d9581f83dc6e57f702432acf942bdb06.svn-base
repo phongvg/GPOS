@@ -1,0 +1,531 @@
+package com.gg.gpos.menu.manager;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import com.gg.gpos.common.constant.SymbolEnum;
+import com.gg.gpos.common.constant.TypeRestaurantDataEditEnum;
+import com.gg.gpos.menu.dto.GroupParamDto;
+import com.gg.gpos.menu.dto.ParamDto;
+import com.gg.gpos.menu.entity.CatalogApplyToRestaurant;
+import com.gg.gpos.menu.entity.CatalogDataEdit;
+import com.gg.gpos.menu.entity.GroupParam;
+import com.gg.gpos.menu.entity.Param;
+import com.gg.gpos.menu.entity.RestaurantDataEdit;
+import com.gg.gpos.menu.mapper.GroupParamMapper;
+import com.gg.gpos.menu.mapper.ParamMapper;
+import com.gg.gpos.menu.repository.CatalogApplyToRestaurantRepository;
+import com.gg.gpos.menu.repository.CatalogDataEditRepository;
+import com.gg.gpos.menu.repository.GroupParamRepository;
+import com.gg.gpos.menu.repository.ParamRepository;
+import com.gg.gpos.menu.repository.RestaurantDataEditRepository;
+import com.gg.gpos.menu.specification.ParamSpecification;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class ParamManager {
+	@Autowired
+	private ParamRepository paramRepository;
+	@Autowired
+	private ParamMapper paramMapper;
+	@Autowired
+	private ParamSpecification paramSpecification;
+	@Autowired
+	private GroupParamRepository groupParamRepository;
+	@Autowired
+	private CatalogApplyToRestaurantRepository applyToRestaurantRepository;
+	@Autowired
+	private CatalogDataEditRepository catalogDataEditRepository;
+	@Autowired
+	private RestaurantDataEditRepository restaurantDataEditRepository;
+	@Autowired
+	private GroupParamMapper groupParamMapper;
+	
+	/*
+	 * Lấy danh sách các Param có trong danh mục
+	 */
+	public List<ParamDto> getsParamDtoInCatalogByGroupParamId(Long groupParamId) {
+		log.debug("PROCESS: GETS PARAM_DTO IN CATALOG BY GROUP_PARAM_ID, GROUP_PARAM_ID: {}", groupParamId);
+		List<ParamDto> paramDtos = new ArrayList<>();
+		try { 
+			// Lấy thông tin về GROUP_PARAM
+			GroupParam groupParam = groupParamRepository.getOne(groupParamId);
+			if(groupParam != null) {
+				return paramRepository.findByGroupParamAndRestaurantCodeIsNull(groupParam).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+			}
+		} catch (Exception e) {
+			log.debug(" ERROR PROCESS: GETS PARAM_DTO IN CATALOG BY GROUP_PARAM_ID EXCEPTION: {}", e);
+		}
+		return paramDtos;
+	}
+	
+	/*
+	 * Lấy danh sách các Param đã chỉnh sửa ở danh mục
+	 */
+	public List<ParamDto> getsParamEditDtoInCatalogByGroupParamId(Long groupParamId) {
+		log.debug("PROCESS: GETS PARAM_EDIT_DTO IN CATALOG BY GROUP_PARAM_ID, GROUP_PARAM_ID: {}", groupParamId);
+		List<ParamDto> paramDtos = new ArrayList<>();
+		try { 
+			// Lấy danh sách PARAM_ID đã được chỉnh sửa ở danh mục GROUP_PARAM
+			List<Long> paramEditIds = catalogDataEditRepository.findByTypeAndCatalogId(TypeRestaurantDataEditEnum.PARAM.val, groupParamId).stream().map(p -> Long.parseLong(p.getValue())).collect(Collectors.toList());
+			// Lấy thông tin các bản ghi PARAM đã được chỉnh sửa ở danh mục GROUP_PARAM
+			return paramRepository.findByIdIn(paramEditIds).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+		} catch (Exception e) {
+			log.debug(" ERROR PROCESS: GETS PARAM_EDIT_DTO IN CATALOG BY GROUP_PARAM_ID EXCEPTION: {}", e);
+		}
+		return paramDtos;
+	}
+	
+	public GroupParamDto saveGroupParam(GroupParamDto groupParamDto) {
+		log.debug("Entering 'save(groupParam)' method...");
+		GroupParam groupParam = Optional.ofNullable(groupParamDto).map(groupParamMapper::dtoToEntity).orElse(null);
+		if(groupParam != null) {
+			if(groupParam.getId() != null && !groupParam.isStatus()) {
+				List<CatalogApplyToRestaurant> applyToRestaurants = applyToRestaurantRepository.findByGroupParamId(groupParam.getId());
+		        List<Integer> rCodeExistings = applyToRestaurants.stream().map(ap -> ap.getRestaurantCode()).collect(Collectors.toList());
+		        if(rCodeExistings != null && !rCodeExistings.isEmpty()) {
+		        	rCodeExistings.stream().forEach(rCode ->{
+		        		restaurantDataEditRepository.deleteByRestaurantCodeAndType(rCode,TypeRestaurantDataEditEnum.PARAM.val);
+		        		saveCatalogApply(rCode, null);
+		        		paramRepository.deleteByRestaurantCode(rCode);
+		        	});
+		        	catalogDataEditRepository.deleteByCatalogIdAndType(groupParam.getId(),TypeRestaurantDataEditEnum.PARAM.val);
+		        }
+			}
+			return Optional.ofNullable(groupParamRepository.save(groupParam)).map(groupParamMapper::entityToDto).orElse(null);
+		} else {
+			return null;
+		}
+	}
+	
+	public ParamDto get(Long id) {
+		log.debug("PROCESS: GET PARAM_DTO BY ID, PARAM_ID: {}", id);
+		return paramRepository.findById(id).map(paramMapper::entityToDto).orElse(null);
+	}
+	
+	public List<ParamDto> gets(){
+		return paramRepository.findAll().stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	/*
+	 * Ghi lại thông tin param đã chỉnh sửa để phục vụ cho việc đồng bộ update thông tin xuống nhà hàng (Từ danh mục xuống nhà hàng)
+	 */
+	private void saveCatalogDataEdit(Long catalogId,String value,String type) {
+		log.debug("PROCESS: SAVE CATALOG_DATA_EDIT, CATALOG_ID: {}, TYPE: {}, VALUE: {}", catalogId, type, value);
+		catalogDataEditRepository.deleteByCatalogIdAndTypeAndValue(catalogId,type,value);
+		CatalogDataEdit catalogDataEdit = catalogDataEditRepository.findByCatalogIdAndTypeAndValue(catalogId,type,value);
+		if(catalogDataEdit == null) {
+			catalogDataEdit = new CatalogDataEdit();
+		}
+		catalogDataEdit.setValue(value);
+		catalogDataEdit.setCatalogId(catalogId);
+		catalogDataEdit.setType(type);
+		catalogDataEditRepository.save(catalogDataEdit);
+	}
+	
+	/*
+	 * Ghi lại thông tin param đã chỉnh sửa để phục vụ cho việc đồng bộ update thông tin về server nhà hàng (Gửi từ GPOS xuống SERVER nhà hàng)
+	 */
+	private void saveRestaurantDataEdit(String value, String type,Integer resCode) {
+		log.debug("PROCESS: SAVE RESTAURANT_DATA_EDIT, RESTAURANT_CODE: {}, TYPE: {}, VALUE: {}", resCode, type, value);
+		restaurantDataEditRepository.deleteByValueAndRestaurantCodeAndType(value, resCode, type);
+		RestaurantDataEdit restaurantDataEdit = restaurantDataEditRepository.findByValueAndRestaurantCodeAndType(value, resCode, type);
+		if(restaurantDataEdit == null) {
+			restaurantDataEdit = new RestaurantDataEdit();
+		}
+		restaurantDataEdit.setValue(value);
+		restaurantDataEdit.setType(type);
+		restaurantDataEdit.setRestaurantCode(resCode);
+		restaurantDataEditRepository.save(restaurantDataEdit);
+	}
+	
+	public ParamDto save(ParamDto paramDto) {
+		log.debug("PROCESS: SAVE PARAM, PARAM_DTO: {}", paramDto);
+		Param param = Optional.ofNullable(paramDto).map(paramMapper::dtoToEntity).orElse(null);
+		if(param != null) {
+			ParamDto newParamDto = Optional.ofNullable(paramRepository.save(param)).map(paramMapper::entityToDto).orElse(null);
+			Long paramId = newParamDto.getId();
+			// trường hợp mà chỉnh sửa param ở dưới danh sách nhà hàng thì cần lưu lại thông tin param đã chỉnh sửa để phục vụ cho việc đồng bộ update thông tin về server nhà hàng (Gửi từ GPOS xuống SERVER nhà hàng)
+			if(newParamDto.getRestaurantCode() != null) {
+				saveRestaurantDataEdit(paramId.toString(),TypeRestaurantDataEditEnum.PARAM.val, param.getRestaurantCode());
+			} else {
+				// Set lại trường ngày chỉnh sửa để hiển thị phần danh mục Group-Param theo thời gian chỉnh sửa
+				GroupParamDto groupParamDto = groupParamRepository.findById(newParamDto.getGroupParam().getId()).map(groupParamMapper::entityToDto).orElse(null);
+				groupParamDto.setModifiedDate(LocalDateTime.now());
+				GroupParam groupParam = Optional.ofNullable(groupParamDto).map(groupParamMapper::dtoToEntity).orElse(null);
+				groupParamRepository.save(groupParam);
+				// trường hợp mà chỉnh sửa param ở danh mục thì cần lưu lại thông tin param đã chỉnh sửa để phục vụ cho việc đồng bộ update thông tin xuống nhà hàng (Từ danh mục xuống nhà hàng)
+		    	saveCatalogDataEdit(groupParamDto.getId(), paramId.toString(), TypeRestaurantDataEditEnum.PARAM.val);
+			}
+			return newParamDto;
+		} else {
+			return null;
+		}
+	}
+	
+	public Page<ParamDto> gets(ParamDto criteria){
+		log.debug("PROCESS: GETS PARAM, PARAM_DTO: {}", criteria);
+		Page<Param> page = paramRepository.findAll(paramSpecification.filter(criteria), PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(paramMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+	
+	public Page<ParamDto> getByResCode(ParamDto criteria){
+		Page<Param> page = paramRepository.findByRestaurantCode(criteria.getRestaurantCode(), PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(paramMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(),criteria.getSize()),page.getTotalElements());
+	}
+	
+	public Page<ParamDto> searchByResCode(ParamDto criteria){
+		Specification<Param> specs = Specification.where(paramSpecification.codeLike(criteria.getParamCode(), criteria.getRestaurantCode()));
+		
+		Page<Param> page = paramRepository.findAll(specs, PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(paramMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(),criteria.getSize()),page.getTotalElements());
+	}
+	
+	
+	public void delete(List<Param> params) {
+		params.stream().forEach(f -> paramRepository.delete(f));
+	}
+	
+
+	/*public void deleteParamDto(ParamDto paramDto) {
+		Param param = Optional.ofNullable(paramDto).map(paramMapper::dtoToEntity).orElse(null);
+		if(param != null) {
+			String paramCode = param.getParamCode();
+			Integer resCode = param.getRestaurantCode();
+			Long groupParamId = param.getGroupParam().getId();
+			if(resCode != null) {
+				saveRestaurantDataEdit(Long.parseLong(paramCode),TypeRestaurantDataEditEnum.DELETE_PARAM.val, param.getRestaurantCode());
+			} else {
+				List<CatalogApplyToRestaurant> catalogApplyToRestaurants = applyToRestaurantRepository.findByGroupParamId(groupParamId);
+		    	if(catalogApplyToRestaurants != null && !catalogApplyToRestaurants.isEmpty()) {
+		    		catalogApplyToRestaurants.stream().forEach(item ->{
+		    			saveCatalogDataEdit(groupParamId, Long.parseLong(paramCode), resCode, TypeRestaurantDataEditEnum.DELETE_PARAM.val);
+		    		});
+		    	}
+		    	saveCatalogDataEdit(groupParamId, Long.parseLong(paramCode), resCode, TypeRestaurantDataEditEnum.DELETE_PARAM_CATA.val);
+			}
+			paramRepository.delete(param);
+		}
+	}*/
+	
+	public List<Integer> getAppliedRestaurantCodes() {
+		log.debug("entering 'getAppliedRestaurantCodes' method...");
+		
+		return paramRepository.findRestaurantCodes();
+	}
+	
+	public List<ParamDto> getByResCode(Integer resCode) {
+		return paramRepository.findByRestaurantCode(resCode).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	public Page<ParamDto> getParams(ParamDto criteria){
+		log.debug("Entering 'gets(criteria)' method...");
+		
+		Page<Param> page = paramRepository.findByRestaurantCodeIsNull(PageRequest.of(criteria.getPage(), criteria.getSize(), Sort.by(Sort.Direction.DESC, "createdDate")));
+		return new PageImpl<>(page.getContent().stream().map(paramMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()),page.getTotalElements());
+	}
+	
+	public List<ParamDto> gets(Integer resCode){
+		log.debug("Entering 'gets(resCode)' method...");
+		return paramRepository.findByRestaurantCodeAndGroupParamIsNotNull(resCode).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+	}
+	
+	private void saveCatalogApply(Integer resCode, Long gpId) {
+		CatalogApplyToRestaurant applyToRestaurant = applyToRestaurantRepository.findByRestaurantCode(resCode);
+		if(applyToRestaurant == null) {
+			applyToRestaurant = new CatalogApplyToRestaurant();
+		}
+		applyToRestaurant.setRestaurantCode(resCode);
+		applyToRestaurant.setGroupParamId(gpId);
+		applyToRestaurantRepository.save(applyToRestaurant);
+	}
+	
+	// clone data params
+	private void cloneParams(Integer resCode, boolean isOverride, GroupParam groupParam,boolean isSaveRDE,boolean isCopyToRes) {
+		log.info("Entering 'cloneParams(Integer resCode, boolean isOverride, GroupParam groupParam,boolean isSaveRDE,boolean isCopyToRes)' method...");
+		List<Param> params = new ArrayList<>();
+		if(isOverride) {
+			params = paramRepository.findByGroupParamAndRestaurantCodeIsNull(groupParam);
+        	//delete old data
+			paramRepository.deleteByRestaurantCode(resCode);
+			restaurantDataEditRepository.deleteByRestaurantCodeAndType(resCode,TypeRestaurantDataEditEnum.PARAM.val);
+		} else if(isCopyToRes){
+			List<RestaurantDataEdit> paramDatas = restaurantDataEditRepository.findByRestaurantCodeAndType(resCode, TypeRestaurantDataEditEnum.PARAM.val);
+			if(paramDatas != null && !paramDatas.isEmpty()) {
+				List<Long> paramIds = paramDatas.stream().map(p -> Long.parseLong(p.getValue())).collect(Collectors.toList());
+				params = paramRepository.findByIdIn(paramIds);
+			}
+		}else {
+			List<CatalogDataEdit> catalogDataEdits = catalogDataEditRepository.findByTypeAndCatalogId(TypeRestaurantDataEditEnum.PARAM.val,groupParam.getId());
+        	List<Long> paramIds = catalogDataEdits.stream().map(p -> Long.parseLong(p.getValue())).collect(Collectors.toList());
+        	params = paramRepository.findByIdIn(paramIds);
+        	/*List<CatalogDataEdit> delDataEdits = catalogDataEditRepository.findByCatalogIdAndRestaurantCodeAndType(groupParam.getId(), resCode, TypeRestaurantDataEditEnum.DELETE_PARAM.val);
+        	List<Long> delParamCodes = delDataEdits.stream().map(item -> item.getItemId()).collect(Collectors.toList());
+        	if(delParamCodes != null && !delParamCodes.isEmpty()) {
+        		delParamCodes.stream().forEach(item ->{
+        			List<Param> delParams = paramRepository.findByRestaurantCodeAndParamCode(resCode,item.toString());
+        			List<Long> delParamIds = delParams.stream().map(i -> i.getId()).collect(Collectors.toList());
+        			if(delParamIds != null && !delParamIds.isEmpty()) {
+        				paramRepository.deleteByIdIn(delParamIds);
+        			}
+        		});
+        	}*/
+		}
+		
+		if(params != null && !params.isEmpty()) {
+			// get param update
+			List<Param> paramExistings = paramRepository.findByRestaurantCodeAndGroupParamIsNull(resCode);
+			List<String> paramCodeExistings = paramExistings.stream().map(p -> p.getParamCode()).collect(Collectors.toList());
+			//clone new data
+    		params.stream().forEach(p ->{
+    			if(!paramCodeExistings.contains(p.getParamCode())) {
+        			Param param = new Param();
+    				param.setRestaurantCode(resCode);
+    				param.setGroupParam(p.getGroupParam());
+    				param.setType(p.getType());
+    				param.setParamCode(p.getParamCode());
+    				param.setParamValue(p.getParamValue());
+    				param.setDescription(p.getDescription());
+    				param.setStatus(p.isStatus());
+    				param.setName(p.getName());
+    				param.setCheckTimeRange(p.isCheckTimeRange());
+    				Param newParam = paramRepository.save(param);
+    				if(isSaveRDE) {
+        				saveRestaurantDataEdit(newParam.getId().toString(), TypeRestaurantDataEditEnum.PARAM.val, resCode);
+    				}
+    			}
+    		});
+		}
+	}
+	
+	//copy data
+	private void copyParams(List<Param> params,Integer resCode,boolean isOverride,boolean isSaveRDE){
+		log.info("Entering 'copyParams(List<Param> params,Integer resCode,boolean isOverride,boolean isSaveRDE)' method...");
+		
+		// delete data before update
+		if(isOverride) {
+			//delete old data
+			paramRepository.deleteByRestaurantCode(resCode);
+			restaurantDataEditRepository.deleteByRestaurantCodeAndType(resCode,TypeRestaurantDataEditEnum.PARAM.val);
+		} else {
+			paramRepository.deleteByRestaurantCodeAndGroupParamIsNull(resCode);
+		}
+		if(params != null && !params.isEmpty()) {
+			// get param update
+			List<Param> paramExistings = paramRepository.findByRestaurantCodeAndGroupParamIsNull(resCode);
+			List<String> paramCodeExistings = paramExistings.stream().map(p -> p.getParamCode()).collect(Collectors.toList());
+			//clone new data
+    		params.stream().forEach(p ->{
+    			if(!paramCodeExistings.contains(p.getParamCode())) {
+        			Param param = new Param();
+    				param.setRestaurantCode(resCode);
+    				param.setGroupParam(p.getGroupParam());
+    				param.setType(p.getType());
+    				param.setParamCode(p.getParamCode());
+    				param.setParamValue(p.getParamValue());
+    				param.setDescription(p.getDescription());
+    				param.setStatus(p.isStatus());
+    				param.setName(p.getName());
+    				param.setCheckTimeRange(p.isCheckTimeRange());
+    				Param newParam = paramRepository.save(param);
+    				if(isSaveRDE) {
+        				saveRestaurantDataEdit(newParam.getId().toString(), TypeRestaurantDataEditEnum.PARAM.val, resCode);
+    				}
+    			}
+    		});
+		}
+	}	
+	
+	/*private void deleteCatalogDataEdit(Long catalogId) {
+		log.debug("Entering 'deleteCatalogDataEdit(Long catalogId)' method...");
+		catalogDataEditRepository.deleteByCatalogIdAndType(catalogId,TypeRestaurantDataEditEnum.PARAM.val);
+		catalogDataEditRepository.deleteByCatalogIdAndType(catalogId,TypeRestaurantDataEditEnum.DELETE_PARAM.val);
+	}*/
+	
+	/*private void delRestaurantDataEdit(Integer resCode) {
+		log.debug("Entering 'delRestaurantDataEdit(Integer resCode)' method...");
+		restaurantDataEditRepository.deleteByRestaurantCodeAndType(resCode,TypeRestaurantDataEditEnum.PARAM.val);
+		restaurantDataEditRepository.deleteByRestaurantCodeAndType(resCode,TypeRestaurantDataEditEnum.DELETE_PARAM.val);
+	}*/
+	
+	
+	public void deleteDataIfResUncheck(List<Integer> rCodeExistings, List<String> resCodeSelected,Long catalogId) {
+		// delete data if resCode uncheck
+        if(resCodeSelected != null && !resCodeSelected.isEmpty() && rCodeExistings != null && !rCodeExistings.isEmpty()) {
+        	rCodeExistings.stream().forEach(rCode ->{
+        		if(!resCodeSelected.contains(rCode.toString())) {
+        			//delete old data
+            		paramRepository.deleteByRestaurantCode(rCode);
+            		saveCatalogApply(rCode, null);
+            		catalogDataEditRepository.deleteByCatalogIdAndType(catalogId,TypeRestaurantDataEditEnum.PARAM.val);
+            		restaurantDataEditRepository.deleteByRestaurantCodeAndType(rCode,TypeRestaurantDataEditEnum.PARAM.val);
+        		}
+        	});
+        }
+	}
+	
+	
+	// apply data from catalog to res before sync data to restaurant
+	public void syncToServerRes(GroupParamDto groupParamDto,Integer toResCode,List<Integer> rCodeExistings) {
+    	log.info("Entering 'syncToServerRes(GroupParamDto groupParamDto,Integer toResCode)' method...");
+    	Long gpId = groupParamDto.getId();
+    	boolean isOverride = groupParamDto.getOverride();
+        GroupParam groupParam = Optional.ofNullable(groupParamDto).map(groupParamMapper::dtoToEntity).orElse(null);
+        
+        if(isOverride) {
+    		//cloneParams(Integer resCode, boolean isOverride, GroupParam groupParam,boolean isSaveRDE,boolean isCopyToRes)
+			cloneParams(toResCode, isOverride, groupParam,false,false);     		
+    		saveCatalogApply(toResCode, gpId);
+    		catalogDataEditRepository.deleteByCatalogIdAndType(gpId,TypeRestaurantDataEditEnum.PARAM.val);
+        } else {
+    		if(rCodeExistings != null && !rCodeExistings.isEmpty()) {
+    			if(rCodeExistings.contains(toResCode)) {
+    				cloneParams(toResCode, false, groupParam,true,false);   		
+    			} else {
+    				cloneParams(toResCode, true, groupParam,false,false);    		
+    			}
+    			//save catalogApplyToRes
+    			saveCatalogApply(toResCode, gpId);
+    		} else {
+				cloneParams(toResCode, true, groupParam,false,false);     		
+        		saveCatalogApply(toResCode, gpId);
+    		}
+        }
+	}
+	
+	// apply data from catalog to restaurant
+	public void syncFull(GroupParamDto groupParamDto) {
+		Set<String> keys = StringUtils.commaDelimitedListToSet(groupParamDto.getSelectedRestaurantCodes());
+    	List<String> resCodes = keys.stream().filter(key -> {
+    		return !key.contains(SymbolEnum.UNDERSCORE.val);
+    	}).collect(Collectors.toList());
+    	Long gpId = groupParamDto.getId();
+    	boolean isOverride = groupParamDto.getOverride();
+        GroupParam groupParam = groupParamRepository.getOne(gpId);
+        
+        List<CatalogApplyToRestaurant> applyToRestaurants = applyToRestaurantRepository.findByGroupParamId(gpId);
+        List<Integer> rCodeExistings = applyToRestaurants.stream().map(ap -> ap.getRestaurantCode()).collect(Collectors.toList());
+        
+        // delete data in resCode uncheck
+//        if(rCodeExistings != null && !rCodeExistings.isEmpty()) {
+//        	rCodeExistings.stream().forEach(rCode ->{
+//        		if(!resCodes.contains(rCode.toString())) {
+//        			//delete old data
+//            		paramRepository.deleteByRestaurantCode(rCode);
+//            		saveCatalogApply(rCode, null);
+//            		restaurantDataEditRepository.deleteByRestaurantCodeAndType(rCode,TypeRestaurantDataEditEnum.PARAM.val);
+//        		}
+//        	});
+//        }
+        
+        if(isOverride) {
+        	resCodes.stream().forEach(resCode ->{
+        		//cloneParams(Integer resCode, boolean isOverride, GroupParam groupParam,boolean isSaveRDE,boolean isCopyToRes)
+    			cloneParams(Integer.parseInt(resCode), isOverride, groupParam,false,false);     		
+        		saveCatalogApply(Integer.parseInt(resCode), gpId);
+        	});
+        	catalogDataEditRepository.deleteByCatalogIdAndType(gpId,TypeRestaurantDataEditEnum.PARAM.val);
+        } else {
+    		if(rCodeExistings != null && !rCodeExistings.isEmpty()) {
+    			resCodes.stream().forEach(resCode -> {
+        			if(rCodeExistings.contains(Integer.parseInt(resCode))) {
+        				cloneParams(Integer.parseInt(resCode), false, groupParam,true,false);   		
+        			} else {
+        				cloneParams(Integer.parseInt(resCode), true, groupParam,true,false);    		
+        			}
+        			//save catalogApplyToRes
+        			saveCatalogApply(Integer.parseInt(resCode), gpId);
+            	});
+    		} else {
+    			resCodes.stream().forEach(resCode -> {
+    				cloneParams(Integer.parseInt(resCode), true, groupParam,true,false);     		
+            		saveCatalogApply(Integer.parseInt(resCode), gpId);
+            	});
+    		}
+        }
+        catalogDataEditRepository.deleteByCatalogIdAndType(gpId,TypeRestaurantDataEditEnum.PARAM.val);
+	}
+	
+	//copy data from res to res same brand
+	public void copyFromRes(GroupParamDto groupParamDto) {
+		List<Integer> resCodes = groupParamDto.getResCodes();
+		Integer restaurantCode = groupParamDto.getRestaurantCode();
+        List<Param> params = paramRepository.findByRestaurantCode(restaurantCode);
+    	boolean isOverride = groupParamDto.getOverride();
+    	CatalogApplyToRestaurant applyToRestaurant = applyToRestaurantRepository.findByRestaurantCode(restaurantCode);
+    	if(applyToRestaurant != null && applyToRestaurant.getGroupParamId() != null && resCodes != null && params != null && !params.isEmpty()) {
+    		Long gpId = applyToRestaurant.getGroupParamId();
+    		if(isOverride) {
+    			resCodes.stream().forEach(resCode -> {
+    				//copyParams(List<Param> params,Integer resCode,boolean isOverride,boolean isSaveRDE)
+					copyParams(params, resCode, true, false);
+	    			saveCatalogApply(resCode,gpId);
+	        	});
+			} else {
+	    		List<CatalogApplyToRestaurant> applyToRestaurants = applyToRestaurantRepository.findByGroupParamId(gpId);
+	    		if(applyToRestaurants != null && !applyToRestaurants.isEmpty()) {
+	    			List<Integer> rCodeExistings = applyToRestaurants.stream().map(ap -> ap.getRestaurantCode()).collect(Collectors.toList());
+	    			resCodes.stream().forEach(resCode -> {
+	        			if(rCodeExistings.contains(resCode)) {
+	        				//cloneParams(Integer resCode, boolean isOverride, GroupParam groupParam,boolean isSaveRDE,boolean isCopyToRes)
+	        				cloneParams(restaurantCode, false, null,true,true);   	
+	        			} else {
+	        				copyParams(params, resCode, false, true); 		
+	        			}
+	        			//save catalogApplyToRes
+	        			saveCatalogApply(resCode, gpId);
+	            	});
+	    		} else {
+	    			resCodes.stream().forEach(resCode -> {
+	    				copyParams(params, resCode, false, true);
+		    			saveCatalogApply(resCode,gpId);
+	            	});
+	    		}
+			}
+    	}
+	}
+	
+	//apply data form restaurant
+	public void applyFromRes(GroupParamDto groupParamDto) {
+        GroupParam groupParam = groupParamRepository.getOne(groupParamDto.getId());
+        Integer resCode = groupParamDto.getRestaurantCode();
+        Long gpId = groupParamDto.getId();
+    	boolean isOverride = groupParamDto.getOverride();
+    	
+    	CatalogApplyToRestaurant applyToRestaurant = applyToRestaurantRepository.findByRestaurantCode(resCode);
+        
+        if(isOverride) {
+        	cloneParams(resCode, isOverride, groupParam,false,false);  
+		} else {
+			if(applyToRestaurant != null && applyToRestaurant.getGroupParamId() != null) {
+				if(applyToRestaurant.getGroupParamId().equals(gpId)) {
+    				//cloneParams(Integer resCode, boolean isOverride, GroupParam groupParam,boolean isSaveRDE,boolean isCopyToRes)
+    				cloneParams(resCode, false, groupParam,true,false);   		
+    			} else {
+    				cloneParams(resCode, true, groupParam,true,false);    		
+    			}
+			} else {
+				cloneParams(resCode, true, groupParam,true,false);
+			}
+		}
+		saveCatalogApply(resCode,gpId);
+	}
+}

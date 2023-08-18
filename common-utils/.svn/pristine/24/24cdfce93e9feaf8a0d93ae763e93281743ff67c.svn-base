@@ -1,0 +1,39 @@
+/*
+ * Copyright 2018. All rights reserved.
+ * This software is the confidential and proprietary information
+ * of GG ("Confidential Information").
+ * You shall not disclose such Confidential Information and shall
+ * use it only in accordance with the terms of the license agreement
+ * you entered into with GG.
+ */
+package com.gg.gpos.common.util;
+
+/**
+ * The Class StringUtils.
+ *
+ * @author <a href="mailto:ngtrungkien@gmail.com">Kien Nguyen</a>
+ */
+public class StringUtils {
+
+	public static <T> String arrayToString(T[] array, String delimiter) {
+        StringBuilder arTostr = new StringBuilder();
+        if (array.length > 0) {
+            arTostr.append(array[0]);
+            for (int i=1; i<array.length; i++) {
+                arTostr.append(delimiter);
+                arTostr.append(array[i]);
+            }
+        }
+
+        return arTostr.toString();
+    }
+	
+	public static Long[] toLongArray(String[] strArray) {
+		Long[] data = new Long[strArray.length];
+		for (int i = 0; i < strArray.length; i++) {
+			data[i] = Long.valueOf(strArray[i]);
+		}
+
+		return data;
+	}
+}

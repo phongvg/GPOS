@@ -1,0 +1,96 @@
+.nav-bar {
+  display: flex;
+  background: #fff;
+  justify-content: space-between;
+}
+
+.nav-bar__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 50px;
+  padding: 5px;
+  text-align: center;
+  text-decoration: none;
+  color: #000;
+  border: 1px solid #fff;
+  transition: all 0.3s ease-in-out;
+}
+
+.nav-bar__link:after,
+.nav-bar__link.active:after{
+  content: "";
+  position: absolute;
+  display: block;
+  bottom: 0;
+  background: red;
+}
+
+.nav-bar__link:after {
+  left: 50%;
+  width: 0;
+  height: 2px;
+  transition: width 0.3s ease 0s, left 0.3s ease 0s;
+}
+
+.nav-bar__link.active:after {
+  left: 0;
+  width: 100%;
+  height: 2px;
+}
+
+.nav-bar__link:hover {
+  color: #fff;
+  background: #57a2fd;
+}
+
+.nav-bar__link:hover:after {
+  left: 0;
+  width: 100%;
+}
+.nav-bar .nav-bar__link span {
+	font-size: 9pt;
+}
+.nav-tabs .nav-link {
+	font-size: 15px;
+	margin-right: 20px;
+}
+#btnApply {
+	width: 200px;
+	height: 35px;
+	background-color: #2196f3;
+	color: #fff;
+	margin-left: 20px;
+}
+#btnAddKitchen {
+	background-color: #2196f3;
+	color: #fff;
+}
+.select-kds {
+	background-color: #fff;
+	border: thin;
+	width: 100%;
+	position: relative;
+	margin: auto;
+	margin-bottom: 20px;
+	padding: 10px 0px;
+}
+.res-content{
+	background-color: #fff;
+	padding: 20px 20px;
+}
+#btnSearchParam {
+	width: 200px;
+	height: 35px;
+	background-color: #2196f3;
+	color: #fff;
+	margin-left: 20px;
+}
+th {
+	text-align: center;
+}
+td {
+	text-align: center;
+}

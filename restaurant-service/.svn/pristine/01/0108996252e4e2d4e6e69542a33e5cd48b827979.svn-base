@@ -1,0 +1,20 @@
+package com.gg.gpos.res.repository;
+
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import com.gg.gpos.res.entity.Restaurant;
+import com.gg.gpos.res.entity.SyncStatus;
+
+@Repository
+public interface SyncStatusRepository extends JpaRepository<SyncStatus, Long>, JpaSpecificationExecutor<SyncStatus> {
+	SyncStatus findByRestaur(Restaurant restaurant);
+	SyncStatus findByRestaur_code(Integer code);
+	@Query("from SyncStatus r where r.masterDataSyncStatus = :sttSynFail or r.masterDataSyncStatus = :sttNotSync")
+	List<SyncStatus> findBySttSyncMasterData(@Param("sttSynFail")String sttSynFail,@Param("sttNotSync") String sttNotSync);
+	@Query("from SyncStatus r where r.businessSyncStatus = :sttSynFail or r.businessSyncStatus = :sttNotSync")
+	List<SyncStatus> findBySttSyncBusinessData(@Param("sttSynFail")String sttSynFail,@Param("sttNotSync") String sttNotSync);
+}

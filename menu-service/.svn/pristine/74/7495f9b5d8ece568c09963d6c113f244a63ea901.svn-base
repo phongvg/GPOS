@@ -1,0 +1,38 @@
+package com.gg.gpos.menu.repository;
+
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import com.gg.gpos.menu.entity.GroupParam;
+import com.gg.gpos.menu.entity.Param;
+
+@Repository
+public interface ParamRepository extends JpaRepository<Param, Long>,JpaSpecificationExecutor<Param>{
+	Page<Param> findByRestaurantCode(Integer restaurantCode,Pageable pageable);
+	Page<Param> findByGroupParamAndRestaurantCodeIsNull(GroupParam groupParam, Pageable pageable);
+	List<Param> findByRestaurantCode(Integer restaurantCode);
+	/*List<Param> findByRestaurantCodeAndParamCode(Integer restaurantCode,String paramCode);*/
+	List<Param> findByRestaurantCodeIsNull();
+	List<Param> findByGroupParamAndRestaurantCodeIsNull(GroupParam groupParam);
+	List<Param> findByRestaurantCodeAndGroupParamIsNotNull(Integer restaurantCode);
+	
+	@Query("select distinct p.restaurantCode from Param p where p.restaurantCode is not null")
+	List<Integer> findRestaurantCodes();
+	
+	Page<Param> findByRestaurantCodeIsNull(Pageable pageable);
+	void deleteByRestaurantCode(Integer restaurantCodes);
+	void deleteByRestaurantCodeAndGroupParamIsNull(Integer restaurantCodes);
+	void deleteByRestaurantCodeAndGroupParamIsNotNull(Integer restaurantCodes);
+	void deleteByIdIn(List<Long> paramIds);
+	
+	List<Param> findByIdIn(List<Long> paramIds);
+	List<Param> findByRestaurantCodeAndGroupParamIsNull(Integer restaurantCode);
+	Param findByRestaurantCodeAndParamCode(Integer restaurantCode,String paramCode);
+	void deleteByRestaurantCodeAndParamCodeAndGroupParamIsNotNull(Integer restaurantCode, String paramCode);
+}

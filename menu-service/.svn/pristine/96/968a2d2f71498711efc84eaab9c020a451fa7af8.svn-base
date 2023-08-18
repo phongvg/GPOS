@@ -1,0 +1,38 @@
+package com.gg.gpos.menu.specification;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.persistence.criteria.Join;
+import javax.persistence.criteria.Predicate;
+
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
+
+import com.gg.gpos.menu.dto.SoCategoryDto;
+import com.gg.gpos.menu.entity.OrderCategory;
+import com.gg.gpos.menu.entity.So;
+import com.gg.gpos.menu.entity.SoCategory;
+
+@Component
+public class SoCategorySpecification {
+	public Specification<SoCategory> filter(final SoCategoryDto criteria) {
+		return (root, cq, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			
+			if (criteria.getSoId() != null) {
+				Join<SoCategory, OrderCategory> orderCategoryRoot = root.join("orderCategory");
+				Join<SoCategory, So> soRoot = root.join("so");
+				predicates.add(cb.equal(soRoot.get("id"), criteria.getSoId()));
+			}
+			
+			if (criteria.getRestaurantCode() != null) {
+				predicates.add(cb.equal(root.get("restaurantCode"), criteria.getRestaurantCode()));
+			} else {
+				predicates.add(cb.isNull(root.get("restaurantCode")));
+			}
+			
+			return cb.and(predicates.stream().toArray(Predicate[]::new));
+		};
+	}
+}

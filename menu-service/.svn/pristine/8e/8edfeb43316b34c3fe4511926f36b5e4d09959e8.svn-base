@@ -1,0 +1,65 @@
+package com.gg.gpos.menu.specification;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.persistence.criteria.Predicate;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
+
+import com.gg.gpos.menu.dto.FeatureDto;
+import com.gg.gpos.menu.entity.Feature;
+
+@Component
+public class FeatureSpecification {
+	public Specification<Feature> filterByTypeEqual(final FeatureDto criteria){
+		return (root, cq, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			if (StringUtils.isNotBlank(criteria.getCode())) {
+        		predicates.add(cb.equal(root.get("code"), criteria.getCode()));
+        	} 
+        	if (StringUtils.isNotBlank(criteria.getNameVn())) {
+        		predicates.add(cb.like(root.get("nameVn"),"%" + criteria.getNameVn().trim() + "%"));
+        	}
+        	if (StringUtils.isNotBlank(criteria.getNameEn())) {
+        		predicates.add(cb.like(root.get("nameEn"),"%" + criteria.getNameEn().trim() + "%"));
+        	}       
+        	return cb.and(predicates.stream().toArray(Predicate[]::new));
+		};
+	}
+	
+	public Specification<Feature> filterByTypeNotEqual(final FeatureDto criteria){
+		return (root, cq, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+        	if (StringUtils.isNotBlank(criteria.getCode())) {
+        		predicates.add(cb.equal(root.get("code"), criteria.getCode()));
+        	} 
+        	if (StringUtils.isNotBlank(criteria.getNameVn())) {
+        		predicates.add(cb.like(root.get("nameVn"),"%" + criteria.getNameVn().trim() + "%"));
+        	}
+        	if (StringUtils.isNotBlank(criteria.getNameEn())) {
+        		predicates.add(cb.like(root.get("nameEn"),"%" + criteria.getNameEn().trim() + "%"));
+        	}        
+        	return cb.and(predicates.stream().toArray(Predicate[]::new));
+		};
+	}
+	
+	public Specification<Feature> search(final String code, final String name, final Integer status) {
+		return (root, cq, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			predicates.add(cb.notEqual(root.get("status"), 0));
+			if (StringUtils.isNotBlank(code)) {
+				predicates.add(cb.equal(root.get("code"), code));
+			}
+			if (StringUtils.isNotBlank(name)) {
+				predicates.add(cb.like(root.get("nameVn"), "%" + name + "%"));
+			}
+			if (status != null) {
+				predicates.add(cb.equal(root.get("status"), status));
+			}
+			return cb.and(predicates.stream().toArray(Predicate[]::new));
+		};
+	}
+}

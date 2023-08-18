@@ -1,0 +1,24 @@
+/*
+ * Copyright 2018. All rights reserved.
+ * This software is the confidential and proprietary information
+ * of GG ("Confidential Information").
+ * You shall not disclose such Confidential Information and shall
+ * use it only in accordance with the terms of the license agreement
+ * you entered into with GG.
+ */
+package com.gg.gpos.common.constant;
+
+/**
+ * The Enum RoleEnum.
+ * 
+ * @author <a href="mailto:ngtrungkien@gmail.com">Kien Nguyen</a> 
+ */
+public enum RoleEnum {
+	ADMIN("ROLE_ADMIN");
+	
+	public String role;
+	
+	private RoleEnum(String role) {
+		this.role = role;
+	}
+}

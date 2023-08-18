@@ -1,0 +1,53 @@
+package com.gg.gpos.menu.manager;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import javax.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import com.gg.gpos.menu.dto.ModiGroupDto;
+import com.gg.gpos.menu.entity.ModiGroup;
+import com.gg.gpos.menu.mapper.ModiGroupMapper;
+import com.gg.gpos.menu.repository.ModiGroupRepository;
+import com.gg.gpos.menu.specification.ReferenceObjectSpecification;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class ModiGroupManager {
+	@Autowired
+	private ModiGroupRepository modiGroupRepository;
+	@Autowired
+	private ModiGroupMapper modiGroupMapper;
+	@Autowired
+	private ReferenceObjectSpecification<ModiGroup> referenceObjectSpecification;
+	
+	public ModiGroupDto get(Long id){
+		return modiGroupRepository.findById(id).map(modiGroupMapper::entityToDto).orElse(null);
+	}
+	
+	public void save(List<ModiGroupDto> modiGroupDtos) {
+		log.debug("PROCESS: SAVE MODI_GROUPS, MODI_GROUP_DTOS: {}", modiGroupDtos);
+		if (!modiGroupDtos.isEmpty()) {
+			modiGroupDtos.stream().forEach(f -> {
+				ModiGroup modiGroup = Optional.ofNullable(f).map(modiGroupMapper::dtoToEntity).orElse(null);
+				if (modiGroup != null) {
+					modiGroupRepository.save(modiGroup);
+				}
+			});
+		}
+	}
+	
+	public Page<ModiGroupDto> gets(ModiGroupDto criteria){
+		log.debug("PROCESS: GETS MODI_GROUP, CRITERIA: {}", criteria);
+		Specification<ModiGroup> spec = Specification.where(referenceObjectSpecification.search(criteria.getCode(), criteria.getName(), criteria.getStatus()));
+		Page<ModiGroup> page = modiGroupRepository.findAll(spec, PageRequest.of(criteria.getPage(), criteria.getSize()));
+		return new PageImpl<>(page.getContent().stream().map(modiGroupMapper::entityToDto).collect(Collectors.toList()),PageRequest.of(criteria.getPage(), criteria.getSize()), page.getTotalElements());
+	}
+}

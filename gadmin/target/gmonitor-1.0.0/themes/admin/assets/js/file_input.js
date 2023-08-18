@@ -1,0 +1,763 @@
+function checkErr(fileName){
+	var regex = /^[a-zA-Z0-9._-]$/;
+	for(var i = 0 ; i < fileName.length ; i++){
+		if(!regex.test(fileName[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+var fileInputForm = function() {
+    //Bootbox extension
+    var initBootbox = function() {
+        if (typeof bootbox == 'undefined') {
+            console.warn('Warning - bootbox.min.js is not loaded.');
+            return;
+        }
+    };
+    
+    var checkFileUpload = function(){
+		// Check Digital-Menu
+		$('#avatar').on('change',function(){
+			var fileInput =  document.getElementById('avatar').files;
+			var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+
+			var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+					title: "Thông báo:",
+					message: errorMessage,
+				});
+			}else{
+				console.log("OK");
+			}
+		});
+
+		$('#digitalMenuphotos').on('change',function(){
+			var fileInput =  document.getElementById('digitalMenuphotos').files;
+			var name = [];
+			let s = '';
+			var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+			if(fileInput.length > 10){
+				document.getElementById('digitalMenuphotos').remove();
+				bootbox.alert({
+					title: "Thông báo:",
+					message: "Số lượng file tải lên quá lớn. Chỉ có thể upload tối đa 10 file ảnh.",
+				});
+			}else{
+				for(var i = 0 ; i < fileInput.length ; i++){
+					var filePath = fileInput[i].name;
+					var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+					jQuery.inArray(fileF,allowedExtensions);
+					var fileSize = fileInput[i].size/1024/1024;
+					if(fileSize > 3 || (jQuery.inArray(fileF,allowedExtensions)) === -1 || !checkErr(filePath)){
+						name.push(filePath);
+					}
+				}
+				if(name.length > 0){
+					$.each(name, function(idx, item) {
+						s = s + item + " , ";
+					});
+					s = s.substring(0, s.length - 2);
+					bootbox.alert({
+						title: "Thông báo:",
+						message: "Không thể tải lên một số tệp ảnh do các ảnh không đúng định dạng hoặc có kích thước quá lớn hoặc tên ảnh không đúng định dạng. Các ảnh đang bị lỗi: " + s + ".",
+					});
+				}else {
+					console.log("OK");
+				}
+			}
+		});
+
+		// Check ảnh ConfigQrOrder
+    	$('#infoPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('infoPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delInfo').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+
+		$('#logoPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('logoPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delLogo').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+
+		$('#closeOrderPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('closeOrderPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delCloseOrder').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+
+    	// Check ảnh CoFoodItem
+    	$('#avatar').on('change',function(){
+    		var fileInput =  document.getElementById('avatar').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delAvatar').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+		$('#qrOrderPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('qrOrderPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024;
+			var errorMessage = "";
+			if(fileSize > 200){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 200KB";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delQrOrderPhoto').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+
+    	$('#halfPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('halfPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delHalfPhoto').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+
+    	$('#toppingPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('toppingPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delToppingPhoto').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#quarterPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('quarterPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delQuarter').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#groupPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('groupPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delGroupPhoto').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+
+    	$('#groupHiddenPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('groupHiddenPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delGroupHiddenPhoto').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#horizontalPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('horizontalPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delHorizontalPhoto').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#verticalPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('verticalPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delVerticalPhoto').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#drinkPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('drinkPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 1){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 1Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delDrink').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	// Check ảnh CoCategory
+    	$('#avatarCoCategory').on('change',function(){
+    		var fileInput =  document.getElementById('avatarCoCategory').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 2){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 2Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delAvatar').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#singleCategoryPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('singleCategoryPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 2){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 2Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delSingleCategory').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#multiCategoryPhoto').on('change',function(){
+    		var fileInput =  document.getElementById('multiCategoryPhoto').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 2){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 2Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delmultiCategory').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#photoIntroMenu').on('change',function(){
+    		var fileInput =  document.getElementById('photoIntroMenu').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 2){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 2Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+//						$('.delDrink').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#photoIntroMenus').on('change',function(){
+    		var fileInput =  document.getElementById('photoIntroMenus').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 2){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 2Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+//						$('.delDrink').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#photoIntroRes').on('change',function(){
+    		var fileInput =  document.getElementById('photoIntroRes').files; 
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 2){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải ảnh có dung lượng dưới 2Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Ảnh tải lên không đúng định dạng. Vui lòng tải ảnh có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên ảnh có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại ảnh.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+//						$('.delDrink').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#videoIntroMenu').on('change',function(){
+    		var fileInput =  document.getElementById('videoIntroMenu').files; 
+    		var allowedExtensions = ["ogm","wmv","mpg","webm","ogv","mov","asx","mpeg","mp4","m4v","avi","mov","flv"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 100){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải video có dung lượng dưới 100Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Video tải lên không đúng định dạng. Vui lòng tải Video có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên video có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại video.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delVideoIntroMenu').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#videoIntroRes').on('change',function(){
+    		var fileInput =  document.getElementById('videoIntroRes').files; 
+    		var allowedExtensions = ["ogm","wmv","mpg","webm","ogv","mov","asx","mpeg","mp4","m4v","avi","mov","flv"];
+    		
+    		var filePath = fileInput[0].name;
+			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+			var fileSize = fileInput[0].size/1024/1024;
+			var errorMessage = "";
+			if(fileSize > 100){
+				errorMessage = "Kích thước tải lên quá lớn. Vui lòng tải video có dung lượng dưới 100Mb";
+			} else if ((jQuery.inArray(fileF,allowedExtensions)) === -1) {
+				errorMessage = "Video tải lên không đúng định dạng. Vui lòng tải Video có định dạng đúng.";
+			} else if (!checkErr(filePath)){
+				errorMessage = "Tên video có chứa kí tự đặc biệt hoặc có khoảng trắng. Vui lòng tải lại video.";
+			} else {
+				errorMessage = "";
+			}
+			if (errorMessage != "") {
+				bootbox.alert({
+				    title: "Thông báo:",
+				    message: errorMessage,
+					callback: function() {
+						$('.delVideoIntroRes').click();
+					}
+				});
+            }else{
+            	console.log("OK");
+			}
+    	});
+    	
+    	$('#photos').on('change',function(){
+    		var fileInput =  document.getElementById('photos').files;
+    		var name = [];
+    		let s = '';
+    		var allowedExtensions = ["jpg","jpeg","png","gif","tiff","pjp","pjpeg","jfif","tif","svg","bmp","svgz","webp","ico","xbm","dib"];
+    		if(fileInput.length > 10){
+    			document.getElementById('photos').remove();
+    			bootbox.alert({
+				    title: "Thông báo:",
+				    message: "Số lượng file tải lên quá lớn. Chỉ có thể upload tối đa 10 file ảnh.",
+				});
+    		}else{
+    			for(var i = 0 ; i < fileInput.length ; i++){
+        			var filePath = fileInput[i].name;
+        			var fileF = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+        			jQuery.inArray(fileF,allowedExtensions);
+        			var fileSize = fileInput[i].size/1024/1024;
+        			if(fileSize > 3 || (jQuery.inArray(fileF,allowedExtensions)) === -1 || !checkErr(filePath)){
+        				name.push(filePath);
+        			}
+        		}
+        		if(name.length > 0){
+        			$.each(name, function(idx, item) {
+                        s = s + item + " , ";
+                    });
+                    s = s.substring(0, s.length - 2);
+                    bootbox.alert({
+    				    title: "Thông báo:",
+    				    message: "Không thể tải lên một số tệp ảnh do các ảnh không đúng định dạng hoặc có kích thước quá lớn hoặc tên ảnh không đúng định dạng. Các ảnh đang bị lỗi: " + s + ".",
+    				});
+        		}else {
+        			console.log("OK");
+        		}
+    		}
+    	});
+    };
+    
+    return {
+        init: function() {
+            initBootbox();
+            checkFileUpload();
+        }
+    }
+}();
+
+// Initialize module
+// ------------------------------
+document.addEventListener('DOMContentLoaded', function() {
+	fileInputForm.init();
+});

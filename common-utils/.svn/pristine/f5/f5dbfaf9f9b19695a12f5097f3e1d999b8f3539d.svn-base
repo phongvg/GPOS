@@ -1,0 +1,19 @@
+package com.gg.gpos.common.constant;
+
+public enum OwnerTypeEnum {
+	TEMPLATE("tem"),
+	RESTAURANT("res"),
+	FEATURE("fea"), 
+	MODIFIER("mod"),
+	BRAND("bra");
+	
+	public String type;
+	/**
+	 * Instantiates a new function type enum.
+	 *
+	 * @param val the val
+	 */
+	private OwnerTypeEnum(String type) {
+		this.type = type;
+	}
+}

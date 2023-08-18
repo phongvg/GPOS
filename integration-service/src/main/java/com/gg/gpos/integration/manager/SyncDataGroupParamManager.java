@@ -1,0 +1,465 @@
+package com.gg.gpos.integration.manager;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+
+import com.gg.gpos.common.constant.StatusEnum;
+import com.gg.gpos.common.constant.SyncStatusEnum;
+import com.gg.gpos.common.constant.TypeRestaurantDataEditEnum;
+import com.gg.gpos.common.json.ConfigParam;
+import com.gg.gpos.common.json.RestaurantMenuDataSync;
+import com.gg.gpos.integration.dto.SyncArchiveDto;
+import com.gg.gpos.integration.dto.SyncDto;
+import com.gg.gpos.integration.entity.Sync;
+import com.gg.gpos.integration.entity.SyncArchive;
+import com.gg.gpos.integration.mapper.SyncArchiveMapper;
+import com.gg.gpos.integration.mapper.SyncMapper;
+import com.gg.gpos.integration.repository.SyncArchiveRepository;
+import com.gg.gpos.integration.repository.SyncRepository;
+import com.gg.gpos.integration.repository.TmpSyncRepository;
+import com.gg.gpos.menu.dto.ParamDto;
+import com.gg.gpos.menu.entity.CatalogApplyToRestaurant;
+import com.gg.gpos.menu.entity.GroupParam;
+import com.gg.gpos.menu.entity.Param;
+import com.gg.gpos.menu.entity.RestaurantDataEdit;
+import com.gg.gpos.menu.mapper.ParamMapper;
+import com.gg.gpos.menu.repository.CatalogApplyToRestaurantRepository;
+import com.gg.gpos.menu.repository.CatalogDataEditRepository;
+import com.gg.gpos.menu.repository.GroupParamRepository;
+import com.gg.gpos.menu.repository.ParamRepository;
+import com.gg.gpos.menu.repository.RestaurantDataEditRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+public class SyncDataGroupParamManager {
+	@Autowired
+	private GroupParamRepository groupParamRepository;
+	@Autowired
+	private CatalogApplyToRestaurantRepository catalogApplyToRestaurantRepository;
+	@Autowired
+	private CatalogDataEditRepository catalogDataEditRepository;
+	@Autowired
+	private RestaurantDataEditRepository restaurantDataEditRepository;
+	@Autowired
+	private ParamRepository paramRepository;
+	@Autowired
+	private ParamMapper paramMapper;
+	@Autowired
+	private SyncRepository syncRepository;
+	@Autowired
+	private SyncMapper syncMapper;
+	@Autowired
+	private SyncArchiveRepository syncArchiveRepository;
+	@Autowired
+	private TmpSyncRepository tmpSyncRepository;
+	@Autowired
+	private SyncArchiveMapper syncArchiveMapper;
+	
+	/*
+	 * Áp dụng danh mục GROUP_PARAM từ nhà hàng
+	 */
+	public Boolean applyCatalogFromRestaurant(SyncDto syncDto) {
+		log.debug("PROCESS: APPLY GROUP_PARAM FROM RESTAURANT");
+		try {
+			
+			Integer restaurantCode = syncDto.getRestaurantCode();
+			Boolean isOverride = syncDto.getOverride();
+			Long groupParamId = syncDto.getCatalogId();
+			
+	    	// Lấy danh sách PARAM_ID đã được chỉnh sửa ở danh mục GROUP_PARAM
+	    	List<Long> paramEditIds = new ArrayList<>();
+	    	if(!CollectionUtils.isEmpty(syncDto.getTmpSyncs())) {
+	    		syncDto.getTmpSyncs().stream().forEach(item ->{
+	    			paramEditIds.add(Long.parseLong(item.getValue()));
+	    		});
+	    	}
+			
+	    	log.debug("==========> LOG SYSTEM_PARAM: GROUP_PARAM_ID: {}, IS_OVERRIDE: {}, RESTAURANT_CODE_APPLY: {}", groupParamId, isOverride, restaurantCode);
+	    	// Lấy thông tin về GROUP_PARAM
+	    	GroupParam groupParam = groupParamRepository.getOne(groupParamId);
+	        
+	    	if(groupParam != null) {
+	    		// Lấy danh sách PARAM có trong danh mục GROUP_PARAM
+				List<ParamDto> paramDtoInCatalogs = paramRepository.findByGroupParamAndRestaurantCodeIsNull(groupParam).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+				
+	    		// Trường hợp đồng bộ ghi đè
+	    		if(isOverride) {
+	    			// Clone tất cả PARAM có trong danh mục GROUP_PARAM xuống nhà hàng || Không lưu thông tin PARAM_ID đánh dấu ITEM đó đã được chỉnh sửa
+					cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, false);
+				} else {
+					// Trường hợp đồng bộ update thì sẽ phân ra 2 TRƯỜNG HỢP
+					
+					// Lấy thông tin các bản ghi PARAM đã được chỉnh sửa ở danh mục GROUP_PARAM
+					List<ParamDto> paramEditDtoInCatalogs = paramRepository.findByIdIn(paramEditIds).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+					// Lấy thông tin xem nhà hàng này đang áp dụng dnah mục GROUP_PARAM nào
+			    	CatalogApplyToRestaurant catalogApplyToRestaurant = catalogApplyToRestaurantRepository.findByRestaurantCode(restaurantCode);
+					
+			    	// TRƯỜNG HỢP 1: Nhà hàng này đã áp dụng danh mục GROUP_PARAM
+					if(catalogApplyToRestaurant != null && catalogApplyToRestaurant.getGroupParamId() != null) {
+						// Kiểm tra xem nếu GROUP_PARAM_ID của nhà hàng == GROUP_PARAM_ID của danh mục thì clone các bản ghi được dánh dấu chỉnh sửa ở danh mục GROUP_PARAM
+						if(catalogApplyToRestaurant.getGroupParamId().equals(groupParamId)) {
+							cloneParamWithStatusUpdate(paramEditDtoInCatalogs, restaurantCode);
+						} else {
+							// Trường hợp k trùng GROUP_PARAM_ID thì áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+							cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, true);
+						}
+					} else {
+						// TRƯỜNG HỢP 2: Nhà hàng chưa áp dụng danh mục này thì áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+						// Áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+						cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, true);
+					}
+				}
+	    		// Lưu thông tin xem danh mục GROUP_PARAM này đang áp dụng cho những nhà hàng nào
+				saveCatalogApplyToRestaurant(restaurantCode, groupParamId);
+	    	}
+	    	
+	    	// Nếu đồng bộ thành công thì xóa bản ghi "SYNC" và tạo mới bản ghi lịch sử đồng bộ "SYNC_ARCHIVE"
+			return deleteSyncAndInsertSyncArchiveAfterSync(syncDto, null);
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS: APPLY GROUP_PARAM FROM RESTAURANT EXCEPTION: {}", e);
+			// Nếu đồng bộ thành công thì xóa bản ghi "SYNC" và tạo mới bản ghi lịch sử đồng bộ "SYNC_ARCHIVE"
+			return deleteSyncAndInsertSyncArchiveAfterSync(syncDto, e.getMessage());
+		}
+	}
+	
+	/*
+	 * Đồng bộ dữ liệu từ DANH MỤC xuống SERVER NHÀ HÀNG
+	 */
+	public RestaurantMenuDataSync syncDataFromCatalogToServerRestaurant(SyncDto syncDto) {
+		log.debug("PROCESS: SYNC DATA FROM CATALOG TO SERVER RESTAURANT, RESTAURANT_CODE: {}", syncDto.getRestaurantCode());
+		RestaurantMenuDataSync restaurantMenuDataSync = new RestaurantMenuDataSync();
+		try {
+			Integer restaurantCode = syncDto.getRestaurantCode();
+			Boolean isOverride = syncDto.getOverride();
+			Long groupParamId = syncDto.getCatalogId();
+			
+			log.debug("==========> LOG SYSTEM_PARAM: GROUP_PARAM_ID: {}, IS_OVERRIDE: {}", groupParamId, isOverride);
+			
+	    	// Lấy danh sách PARAM_ID đã được chỉnh sửa ở danh mục GROUP_PARAM
+	    	List<Long> paramEditIds = new ArrayList<>();
+	    	if(!CollectionUtils.isEmpty(syncDto.getTmpSyncs())) {
+	    		syncDto.getTmpSyncs().stream().forEach(item ->{
+	    			paramEditIds.add(Long.parseLong(item.getValue()));
+	    		});
+	    	}
+	    	
+	    	// Lấy thông tin về GROUP_PARAM
+			GroupParam groupParam = groupParamRepository.getOne(groupParamId);
+			// Lấy danh sách PARAM có trong danh mục GROUP_PARAM
+			List<ParamDto> paramDtoInCatalogs = paramRepository.findByGroupParamAndRestaurantCodeIsNull(groupParam).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+			
+        	// Trường hợp đồng bộ ghi đè
+    		if(isOverride) {
+    			// Clone tất cả PARAM có trong danh mục GROUP_PARAM xuống nhà hàng || Không lưu thông tin PARAM_ID đánh dấu ITEM đó đã được chỉnh sửa
+				cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, false);
+				// Lưu thông tin xem danh mục GROUP_PARAM này đang áp dụng cho những nhà hàng nào
+				saveCatalogApplyToRestaurant(restaurantCode, groupParamId);
+				// Convert json
+				restaurantMenuDataSync.setConfigParams(convertParamJsonsWithStatusOverride(paramDtoInCatalogs));
+    		} else {
+    			// Lấy thông tin các bản ghi PARAM đã được chỉnh sửa ở danh mục GROUP_PARAM
+				List<ParamDto> paramEditDtoInCatalogs = paramRepository.findByIdIn(paramEditIds).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+				
+    			// Lấy danh sách nhà hàng đang được áp dụng danh mục GROUP_PARAM này
+				List<Integer> restaurantCodeApplies = catalogApplyToRestaurantRepository.findByGroupParamId(groupParamId).stream().map(item -> item.getRestaurantCode()).collect(Collectors.toList());		
+				
+    			// TRƯỜNG HỢP 1: Đã có nhà hàng áp dụng danh mục này
+				if(!CollectionUtils.isEmpty(restaurantCodeApplies)) {
+					// Kiểm tra xem nếu code nhà hàng được chọn == code nhà hàng đang áp dụng thì clone các bản ghi được dánh dấu chỉnh sửa ở danh mục GROUP_PARAM
+					if(restaurantCodeApplies.contains(restaurantCode)) {
+						cloneParamWithStatusUpdate(paramEditDtoInCatalogs, restaurantCode);
+						// convert json
+						restaurantMenuDataSync.setConfigParams(convertParamJsonsWithStatusUpdate(restaurantCode));
+					} else {
+						// Trường hợp k trùng mã code thì áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+						cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, true);
+						// Convert json
+						restaurantMenuDataSync.setConfigParams(convertParamJsonsWithStatusOverride(paramDtoInCatalogs));
+					}
+				} else {
+					// TRƯỜNG HỢP 2: Chưa có nhà hàng áp dụng danh mục này thì áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+					// Áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+					cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, true);
+					// Convert json
+					restaurantMenuDataSync.setConfigParams(convertParamJsonsWithStatusOverride(paramDtoInCatalogs));
+				}
+    		}
+    		// Lưu thông tin xem danh mục GROUP_PARAM này đang áp dụng cho những nhà hàng nào
+			saveCatalogApplyToRestaurant(restaurantCode, groupParamId);
+			restaurantMenuDataSync.setResCode(String.valueOf(restaurantCode));
+		} catch (Exception e) {
+			log.debug("ERROR SYNC DATA FROM CATALOG TO SERVER RESTAURANT EXCEPTION: {}", e);
+		}
+		return restaurantMenuDataSync;
+	}
+
+	/*
+	 * Áp dụng danh mục GROUP_PARAM xuống nhà hàng
+	 */
+	public Boolean syncGroupParamFromCatalogToRestaurant(SyncDto syncDto) {
+		log.debug("PROCESS: APPLY GROUP_PARAM FROM CATALOG TO RESTAURANT, RESTAURANTS_CODE: {}", syncDto.getRestaurantCode());
+		try {
+			Integer restaurantCode = syncDto.getRestaurantCode();
+			Boolean isOverride = syncDto.getOverride();
+			Long groupParamId = syncDto.getCatalogId();
+	    	
+	    	// Lấy danh sách PARAM_ID đã được chỉnh sửa ở danh mục GROUP_PARAM
+	    	List<Long> paramEditIds = new ArrayList<>();
+	    	if(!CollectionUtils.isEmpty(syncDto.getTmpSyncs())) {
+	    		syncDto.getTmpSyncs().stream().forEach(item ->{
+	    			paramEditIds.add(Long.parseLong(item.getValue()));
+	    		});
+	    	}
+	    	
+	    	log.debug("==========> LOG SYSTEM_PARAM: GROUP_PARAM_ID: {}, IS_OVERRIDE: {}", groupParamId, isOverride);
+			// Lấy thông tin về GROUP_PARAM
+			GroupParam groupParam = groupParamRepository.getOne(groupParamId);
+			// Lấy danh sách PARAM có trong danh mục GROUP_PARAM
+			List<ParamDto> paramDtoInCatalogs = paramRepository.findByGroupParamAndRestaurantCodeIsNull(groupParam).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+			
+			// Trường hợp đồng bộ ghi đè
+			if(isOverride) {
+				// Clone tất cả PARAM có trong danh mục GROUP_PARAM xuống nhà hàng || Không lưu thông tin PARAM_ID đánh dấu ITEM đó đã được chỉnh sửa
+				cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, false);
+				// Lưu thông tin xem danh mục GROUP_PARAM này đang áp dụng cho những nhà hàng nào
+				saveCatalogApplyToRestaurant(restaurantCode, groupParamId);
+			} else {
+				// Trường hợp đồng bộ update thì sẽ phân ra 2 TRƯỜNG HỢP
+				
+				// Lấy thông tin các bản ghi PARAM đã được chỉnh sửa ở danh mục GROUP_PARAM
+				List<ParamDto> paramEditDtoInCatalogs = paramRepository.findByIdIn(paramEditIds).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+				// Lấy danh sách nhà hàng đang được áp dụng danh mục GROUP_PARAM này
+				List<Integer> restaurantCodeApplies = catalogApplyToRestaurantRepository.findByGroupParamId(groupParamId).stream().map(item -> item.getRestaurantCode()).collect(Collectors.toList());		
+				
+				// TRƯỜNG HỢP 1: Đã có nhà hàng áp dụng danh mục này
+				if(!CollectionUtils.isEmpty(restaurantCodeApplies)) {
+					// Kiểm tra xem nếu code nhà hàng được chọn == code nhà hàng đang áp dụng thì clone các bản ghi được dánh dấu chỉnh sửa ở danh mục GROUP_PARAM
+					if(restaurantCodeApplies.contains(restaurantCode)) {
+						cloneParamWithStatusUpdate(paramEditDtoInCatalogs, restaurantCode);
+					} else {
+						// Trường hợp k trùng mã code thì áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+						cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, true);
+					}
+					// Lưu thông tin xem danh mục GROUP_PARAM này đang áp dụng cho những nhà hàng nào
+					saveCatalogApplyToRestaurant(restaurantCode, groupParamId);
+				} else {
+					// TRƯỜNG HỢP 2: Chưa có nhà hàng áp dụng danh mục này thì áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+					// Áp dụng như đồng bộ GHI ĐÈ nhưng có lưu vào bảng đánh dấu PARAM này đã được chỉnh sửa dưới nhà hàng
+					cloneParamWithStatusOverride(paramDtoInCatalogs, restaurantCode, true);
+					// Lưu thông tin xem danh mục GROUP_PARAM này đang áp dụng cho những nhà hàng nào
+					saveCatalogApplyToRestaurant(restaurantCode, groupParamId);
+				}
+			}
+			
+			// Nếu đồng bộ thành công thì xóa bản ghi "SYNC" và tạo mới bản ghi lịch sử đồng bộ "SYNC_ARCHIVE"
+			 return deleteSyncAndInsertSyncArchiveAfterSync(syncDto, null);
+		} catch (Exception e) {
+
+			log.error("ERROR PROCESS: APPLY GROUP_PARAM FROM CATALOG TO RESTAURANT EXCEPTION: {}", e);
+			// Nếu đồng bộ thành công thì xóa bản ghi "SYNC" và tạo mới bản ghi lịch sử đồng bộ "SYNC_ARCHIVE"
+			return deleteSyncAndInsertSyncArchiveAfterSync(syncDto, e.getMessage());
+		}
+	}
+	
+	/*
+	 * Set lại trạng thái bảng SYNC sau khi đã đồng bộ xong
+	 */
+	private Boolean deleteSyncAndInsertSyncArchiveAfterSync(SyncDto syncDto, String result) {
+		log.debug("PROCESS FUNCTION: DELETE SYNC AND INSERT SYNC_ARCHIVE");
+		try {
+			SyncArchiveDto syncArchiveDto = new SyncArchiveDto();
+			BeanUtils.copyProperties(syncDto, syncArchiveDto);
+			syncArchiveDto.setId(null);
+			if(result != null) {
+				syncArchiveDto.setStatus(SyncStatusEnum.FAIL.val);
+				syncArchiveDto.setResult(result);
+				// Set lại trạng thái của bảng đồng bộ sync là đồng bộ bị lỗi
+				Sync sync = Optional.of(syncDto).map(syncMapper::dtoToEntity).orElse(null);
+				sync.setStatus(SyncStatusEnum.FAIL.val);
+				sync.setResult(result);
+				syncRepository.save(sync);
+			} else {
+				syncArchiveDto.setStatus(SyncStatusEnum.SUCCESS.val);
+				syncArchiveDto.setResult(SyncStatusEnum.SUCCESS.val);
+				
+				// Xóa dữ liệu về bảng TMP_SYNC (Dữ liệu này lưu thông tin các bản ghi đã được chỉnh sửa)
+				Sync sync = Optional.of(syncDto).map(syncMapper::dtoToEntity).orElse(null);
+				tmpSyncRepository.deleteBySync(sync);
+				// Xóa thông tin dữ liệu về bản SYNC
+				syncRepository.delete(sync);
+			}
+			syncArchiveDto.setCreatedDate(LocalDateTime.now());
+			syncArchiveDto.setSyncEndDate(LocalDateTime.now());
+			SyncArchive syncArchive = Optional.of(syncArchiveDto).map(syncArchiveMapper::dtoToEntity).orElse(null);
+			syncArchiveRepository.save(syncArchive);
+			return true;
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: DELETE SYNC AND INSERT SYNC_ARCHIVE");
+			return false;
+		}
+	}
+	
+	
+	/*
+	 * Clone danh sách các PARAM có trong GROUP_PARAM xuống nhà hàng với trạng thái "GHI ĐÈ"
+	 * Trường hợp chọn áp dụng UPDATE nhưng phía nhà hàng chưa áp dụng danh mục thì cũng được tính là GHI ĐÈ nhưng sẽ CÓ LƯU thông tin đánh dấu bản ghi này đã được update để phục vụ cho việc đồng bộ UPDATE xuống SERVER nhà hàng
+	 */
+	private void cloneParamWithStatusOverride(List<ParamDto> paramDtos, Integer restaurantCode, Boolean isSavedRestaurantDataEdit) {
+		log.debug("PROCESS FUNCTION: CLONE PARAM WITH STATUS OVERRIDE BY RESTAURANT_CODE: {}, IS_SAVED_RESTAURANT_DATA_EDIT: {}", restaurantCode, isSavedRestaurantDataEdit);
+		try {
+			String type = TypeRestaurantDataEditEnum.PARAM.val;
+			if(!CollectionUtils.isEmpty(paramDtos)) {
+				// Xóa các dữ liệu param cũ ở dưới nhà hàng trước khi đồng bộ
+				paramRepository.deleteByRestaurantCode(restaurantCode);
+				// Xóa các dữ liệu lữu trữ thông tin các PARAM đã chỉnh sửa ở dưới nhà hàng (liên quan đến việc đồng bộ update xuống server nhà hàng)
+				restaurantDataEditRepository.deleteByRestaurantCodeAndType(restaurantCode, type);
+				// Tạo mới dữ liệu
+				paramDtos.stream().forEach(item ->{
+					ParamDto paramDto = new ParamDto();
+					BeanUtils.copyProperties(item, paramDto);
+					paramDto.setId(null);
+					paramDto.setRestaurantCode(restaurantCode);
+					Param param = Optional.ofNullable(paramDto).map(paramMapper::dtoToEntity).orElse(null);
+					Param paramSaved = paramRepository.save(param);
+					// Đánh dấu bản ghi này đã được update để phục vụ cho việc đồng bộ UPDATE xuống SERVER nhà hàng
+					if(isSavedRestaurantDataEdit) {
+						saveRestaurantDataEdit(paramSaved.getId().toString(), type, restaurantCode);
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: CLONE PARAM WITH STATUS OVERRIDE EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Clone danh sách các PARAM có trong GROUP_PARAM xuống nhà hàng với trạng thái "UPDATE"
+	 */
+	private void cloneParamWithStatusUpdate(List<ParamDto> paramDtos, Integer restaurantCode) {
+		log.debug("PROCESS FUNCTION: CLONE PARAM WITH STATUS UPDATE BY RESTAURANT_CODE: {}", restaurantCode);
+		try {
+			String type = TypeRestaurantDataEditEnum.PARAM.val;
+			if(!CollectionUtils.isEmpty(paramDtos)) {
+				// Lấy các PARAM_CODE đã được chỉnh sửa ở phía nhà hàng. Không update các PARAM có CODE này
+				List<String> paramCodeExistingInRestaurants = paramRepository.findByRestaurantCodeAndGroupParamIsNull(restaurantCode).stream().map(p -> p.getParamCode()).collect(Collectors.toList());
+				// Tạo mới dữ liệu
+				paramDtos.stream().forEach(item ->{
+					if(!paramCodeExistingInRestaurants.contains(item.getParamCode())) {
+						paramRepository.deleteByRestaurantCodeAndParamCodeAndGroupParamIsNotNull(restaurantCode, item.getParamCode());
+						ParamDto paramDto = new ParamDto();
+						BeanUtils.copyProperties(item, paramDto);
+						paramDto.setId(null);
+						paramDto.setRestaurantCode(restaurantCode);
+						Param param = Optional.ofNullable(paramDto).map(paramMapper::dtoToEntity).orElse(null);
+						Param paramSaved = paramRepository.save(param);
+						// Đánh dấu bản ghi này đã được update để phục vụ cho việc đồng bộ UPDATE xuống SERVER nhà hàng
+						saveRestaurantDataEdit(paramSaved.getId().toString(), type, restaurantCode);
+					}
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: CLONE PARAM WITH STATUS UPDATE EXCEPTION: {}", e);
+		}
+	}
+	
+	/*
+	 * Ghi lại thông tin param đã chỉnh sửa để phục vụ cho việc đồng bộ update thông tin về server nhà hàng (Gửi từ GPOS xuống SERVER nhà hàng)
+	 */
+	private void saveRestaurantDataEdit(String value, String type,Integer resCode) {
+		log.debug("PROCESS FUNCTION: SAVE RESTAURANT_DATA_EDIT, RESTAURANT_CODE: {}, TYPE: {}, VALUE: {}", resCode, type, value);
+		try {
+			restaurantDataEditRepository.deleteByValueAndRestaurantCodeAndType(value, resCode, type);
+			RestaurantDataEdit restaurantDataEdit = restaurantDataEditRepository.findByValueAndRestaurantCodeAndType(value, resCode, type);
+			if(restaurantDataEdit == null) {
+				restaurantDataEdit = new RestaurantDataEdit();
+			}
+			restaurantDataEdit.setValue(value);
+			restaurantDataEdit.setType(type);
+			restaurantDataEdit.setRestaurantCode(resCode);
+			restaurantDataEditRepository.save(restaurantDataEdit);
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: SAVE RESTAURANT_DATA_EDIT, RESTAURANT_CODE: {}, TYPE: {}, VALUE: {}", resCode, type, value);
+		}
+	}
+
+	/*
+	 * Lưu dữ liệu vào bảng đánh dấu các nhà hàng đã áp dụng danh mục nào
+	 */
+	private void saveCatalogApplyToRestaurant(Integer resCode, Long groupParamId) {
+		log.debug("PROCESS FUNCTION: SAVE CATALOG-APPLY-TO-RESTAURANT BY RESTAURANT_CODE AND GROUP_PARAM_ID, RESTAURANT_CODE: {}, GROUP_PARAM_ID: {}", resCode, groupParamId);
+		try {
+			CatalogApplyToRestaurant applyToRestaurant = catalogApplyToRestaurantRepository.findByRestaurantCode(resCode);
+			if(applyToRestaurant == null) {
+				applyToRestaurant = new CatalogApplyToRestaurant();
+			}
+			applyToRestaurant.setRestaurantCode(resCode);
+			applyToRestaurant.setGroupParamId(groupParamId);
+			catalogApplyToRestaurantRepository.save(applyToRestaurant);
+		} catch (Exception e) {
+			log.error("ERROR PROCESS FUNCTION: SAVE CATALOG-APPLY-TO-RESTAURANT EXCEPTION: {}", e);
+		}
+	}
+
+	/*
+	 * Convert List thành file Json (trạng thái GHI ĐÈ)
+	 */
+	private List<ConfigParam> convertParamJsonsWithStatusOverride (List<ParamDto> paramDtoInCatalogs) {
+		log.debug("PROCESS FUNCTION: CONVERT PARAM LIST TO PARAM_JSON WITH STATUS OVERRIDDE");
+		List<ConfigParam> paramJsons = new ArrayList<>();
+		try {
+			if(!CollectionUtils.isEmpty(paramDtoInCatalogs)) {
+				paramDtoInCatalogs.stream().forEach(item ->{
+					ConfigParam configParamJson = new ConfigParam();
+					BeanUtils.copyProperties(item, configParamJson);
+					if (item.isStatus()) {
+						configParamJson.setStatus(StatusEnum.ACTIVE.status);
+					}
+					paramJsons.add(configParamJson);
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: CONVERT PARAM LIST TO PARAM_JSON WITH STATUS OVERRIDDE EXCEPTION: {}", e);
+		}
+		return paramJsons;
+	}
+	
+	/*
+	 * Convert List thành file Json (trạng thái UPDATE)
+	 */
+	private List<ConfigParam> convertParamJsonsWithStatusUpdate (Integer restaurantCode) {
+		log.debug("PROCESS FUNCTION: CONVERT PARAM LIST TO PARAM_JSON WITH STATUS UPDATE", restaurantCode);
+		List<ConfigParam> paramJsons = new ArrayList<>();
+		try {
+			List<Long> paramEditIds = restaurantDataEditRepository.findByRestaurantCodeAndType(restaurantCode, TypeRestaurantDataEditEnum.PARAM.val).stream().map(p -> Long.parseLong(p.getValue())).collect(Collectors.toList());
+			List<ParamDto> paramEditDtoInRestaurants = paramRepository.findByIdIn(paramEditIds).stream().map(paramMapper::entityToDto).collect(Collectors.toList());
+			
+			// Lấy danh sách nhà hàng đang được áp dụng danh mục GROUP_PARAM này
+			if(!CollectionUtils.isEmpty(paramEditDtoInRestaurants)) {
+				paramEditDtoInRestaurants.stream().forEach(item ->{
+					ConfigParam configParamJson = new ConfigParam();
+					BeanUtils.copyProperties(item, configParamJson);
+					if (item.isStatus()) {
+						configParamJson.setStatus(StatusEnum.ACTIVE.status);
+					}
+					paramJsons.add(configParamJson);
+				});
+			}
+		} catch (Exception e) {
+			log.debug("ERROR PROCESS FUNCTION: CONVERT PARAM LIST TO PARAM_JSON WITH STATUS UPDATE EXCEPTION: {}", e);
+		}
+		return paramJsons;
+	}
+}

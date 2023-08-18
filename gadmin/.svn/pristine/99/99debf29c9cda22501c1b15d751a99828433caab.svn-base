@@ -1,0 +1,42 @@
+package com.gg.gpos.scheduler;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Controller;
+import org.springframework.util.CollectionUtils;
+
+import com.gg.gpos.common.constant.SyncStatusEnum;
+import com.gg.gpos.common.constant.TypeSyncEnum;
+import com.gg.gpos.integration.dto.SyncDto;
+import com.gg.gpos.integration.manager.SyncManager;
+import com.gg.gpos.integration.manager.ThreadSyncFileManager;
+import com.gg.gpos.integration.manager.ThreadSyncManager;
+
+@EnableScheduling
+@Controller
+public class SchedulerSyncDataController {
+	@Autowired
+	private SyncManager syncManager;
+	@Autowired
+	private ThreadSyncManager threadSyncManager;
+	@Autowired
+	private ThreadSyncFileManager threadSyncFileManager;
+
+	@Scheduled(fixedRateString = "${scheduled.fixed.rate.sync}")
+    private void schedulingSyncData() {
+    	List<SyncDto> syncDtoHasStatusWattings = syncManager.getTop5ByStatusAndTypeSyncNot(SyncStatusEnum.WAITING.val, TypeSyncEnum.SYNC_FILE_DATA_TO_SERVER_RESTAURANT.val);
+    	List<SyncDto> syncDtoHasStatusInProcessings = syncManager.getTop5ByStatusAndTypeSyncNot(SyncStatusEnum.INPROCESSING.val, TypeSyncEnum.SYNC_FILE_DATA_TO_SERVER_RESTAURANT.val);
+    	if(!CollectionUtils.isEmpty(syncDtoHasStatusInProcessings) || !CollectionUtils.isEmpty(syncDtoHasStatusWattings)) {
+    		threadSyncManager.syncData(syncDtoHasStatusWattings, syncDtoHasStatusInProcessings);
+    	}
+    	// Đồng bộ hình ảnh
+    	List<SyncDto> syncDtoTypeFileDataHasStatusWattings = syncManager.getTop5ByStatusAndTypeSync(SyncStatusEnum.WAITING.val, TypeSyncEnum.SYNC_FILE_DATA_TO_SERVER_RESTAURANT.val);
+    	List<SyncDto> syncDtoTypeFileDataHasStatusInProcessings = syncManager.getTop5ByStatusAndTypeSync(SyncStatusEnum.INPROCESSING.val, TypeSyncEnum.SYNC_FILE_DATA_TO_SERVER_RESTAURANT.val);
+    	if(!CollectionUtils.isEmpty(syncDtoTypeFileDataHasStatusWattings) || !CollectionUtils.isEmpty(syncDtoTypeFileDataHasStatusInProcessings)) {
+    		threadSyncFileManager.syncFile(syncDtoTypeFileDataHasStatusWattings, syncDtoTypeFileDataHasStatusInProcessings);
+    	}
+    }
+}
